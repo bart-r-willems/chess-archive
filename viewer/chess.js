@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 14';
+const BUILD = 'v0.1';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
