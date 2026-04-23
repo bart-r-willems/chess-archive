@@ -2,14 +2,19 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>PGN Viewer v7</title>
-  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+  <title>PGN Viewer</title>
+
+  <!-- Chessboard.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+
+  <!-- Chess.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
 
   <style>
     #board { width: 400px; margin-bottom: 20px; }
-    #moves { width: 400px; height: 250px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
+    #moves { width: 400px; height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
+    #controls button { margin: 5px; }
   </style>
 </head>
 
@@ -23,11 +28,21 @@
   </select>
 
   <div id="board"></div>
+
+  <div id="controls">
+    <button onclick="first()">|◀</button>
+    <button onclick="prev()">◀</button>
+    <button onclick="next()">▶</button>
+    <button onclick="last()">▶|</button>
+  </div>
+
   <div id="moves"></div>
 
   <script>
     let board;
     let game = new Chess();
+    let moves = [];
+    let index = 0;
 
     function loadPGN() {
       const file = document.getElementById("pgnSelect").value;
@@ -36,18 +51,59 @@
       const url = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
 
       fetch(url)
-        .then(response => response.text())
+        .then(r => r.text())
         .then(pgn => {
+          game = new Chess();
           game.load_pgn(pgn);
-          board.position(game.fen());
-          document.getElementById("moves").innerHTML = pgn.replace(/\n/g, "<br>");
+          moves = game.history({ verbose: true });
+          index = 0;
+
+          board.position("start");
+          renderMoves();
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      board = Chessboard("board", {
-        position: "start"
+    function renderMoves() {
+      const movesDiv = document.getElementById("moves");
+      movesDiv.innerHTML = "";
+
+      moves.forEach((m, i) => {
+        const span = document.createElement("span");
+        span.textContent = (i + 1) + ". " + m.san + " ";
+        if (i === index - 1) span.style.fontWeight = "bold";
+        movesDiv.appendChild(span);
       });
+    }
+
+    function updateBoard() {
+      const g = new Chess();
+      for (let i = 0; i < index; i++) g.move(moves[i]);
+      board.position(g.fen());
+      renderMoves();
+    }
+
+    function next() {
+      if (index < moves.length) index++;
+      updateBoard();
+    }
+
+    function prev() {
+      if (index > 0) index--;
+      updateBoard();
+    }
+
+    function first() {
+      index = 0;
+      updateBoard();
+    }
+
+    function last() {
+      index = moves.length;
+      updateBoard();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      board = Chessboard("board", "start");
     });
   </script>
 
