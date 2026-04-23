@@ -1,111 +1,1083 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PGN Viewer v8</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Archive Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap');
 
-  <!-- Chessboard.js -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Chess.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+  :root {
+    --bg:        #0f0e0c;
+    --surface:   #1a1916;
+    --border:    #2e2c28;
+    --gold:      #c9a84c;
+    --gold-dim:  #7a6530;
+    --light-sq:  #f0d9b5;
+    --dark-sq:   #b58863;
+    --light-hi:  #cdd26a;
+    --dark-hi:   #aaa23a;
+    --text:      #e8e0d0;
+    --muted:     #7a7060;
+    --accent:    #c9a84c;
+    --move-hi:   #3a5c3a;
+  }
 
-  <style>
-    #board { width: 400px; margin-bottom: 20px; }
-    #moves { width: 400px; height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
-    #controls button { margin: 5px; }
-  </style>
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+
+  header span {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .main {
+    display: flex;
+    gap: 28px;
+    padding: 28px 32px;
+    width: 100%;
+    max-width: 1200px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ── Left column: board + controls ── */
+  .left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Game selector */
+  .game-select-wrap {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .game-select-wrap label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  #gameSelect {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7060' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+
+  #gameSelect:focus { border-color: var(--gold-dim); }
+
+  /* Board */
+  .board-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .board-with-coords {
+    display: grid;
+    grid-template-columns: 22px auto;
+    grid-template-rows: auto 22px;
+    gap: 0;
+  }
+
+  .coord-ranks {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 4px 0;
+    align-items: center;
+    width: 22px;
+  }
+
+  .coord-files {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 22px;
+    padding: 0 4px;
+    grid-column: 2;
+  }
+
+  .coord {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: center;
+    width: 14px;
+  }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border: 2px solid var(--border);
+    width: 512px;
+    height: 512px;
+    flex-shrink: 0;
+  }
+
+  .sq {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    cursor: default;
+    position: relative;
+    transition: background 0.1s;
+    user-select: none;
+  }
+
+  .sq.light { background: var(--light-sq); }
+  .sq.dark  { background: var(--dark-sq); }
+  .sq.hi-light { background: var(--light-hi); }
+  .sq.hi-dark  { background: var(--dark-hi); }
+
+  .piece {
+    line-height: 1;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 512px;
+  }
+
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+
+  .move-counter {
+    margin-left: auto;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Status bar */
+  .status {
+    font-size: 0.8rem;
+    color: var(--muted);
+    width: 100%;
+    max-width: 512px;
+    text-align: center;
+    min-height: 1.2em;
+  }
+
+  /* ── Right column: game info + move list ── */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 280px;
+    flex-shrink: 0;
+  }
+
+  .info-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+
+  .info-box h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.83rem;
+  }
+
+  .info-label { color: var(--muted); flex-shrink: 0; }
+  .info-val   { color: var(--text); text-align: right; }
+
+  /* Move list */
+  .move-list-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .move-list-box h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #moveList {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 2px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.82rem;
+    max-height: 400px;
+  }
+
+  .move-num {
+    color: var(--muted);
+    padding: 3px 2px 3px 0;
+    user-select: none;
+  }
+
+  .move-token {
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+
+  .move-token:hover { background: #2a2820; }
+  .move-token.active { background: var(--move-hi); color: #fff; }
+
+  /* Result badge */
+  .result-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-family: 'Source Code Pro', monospace;
+    background: #2a2820;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+  }
+
+  /* Loading / error */
+  #loadMsg {
+    font-size: 0.85rem;
+    color: var(--muted);
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  /* Keyboard hint */
+  .kb-hint {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  /* Scrollbar */
+  #moveList::-webkit-scrollbar { width: 4px; }
+  #moveList::-webkit-scrollbar-track { background: transparent; }
+  #moveList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
 </head>
-
 <body>
-  <h1>PGN Viewer</h1>
 
-  <p>Select a PGN file:</p>
-  <select id="pgnSelect" onchange="loadPGN()">
-    <option value="">-- choose a file --</option>
-    <option value="my_games.pgn">My Games</option>
-  </select>
+<header>
+  <h1>♟ Chess Archive</h1>
+  <span>PGN Viewer</span>
+</header>
 
-  <div id="board"></div>
+<div class="main">
+  <!-- Left column -->
+  <div class="left-col">
+    <div class="game-select-wrap">
+      <label>Select Game</label>
+      <select id="gameSelect"><option>Loading PGN…</option></select>
+    </div>
 
-  <div id="controls">
-    <button onclick="first()">|◀</button>
-    <button onclick="prev()">◀</button>
-    <button onclick="next()">▶</button>
-    <button onclick="last()">▶|</button>
+    <div id="loadMsg">Fetching game file…</div>
+
+    <div class="board-with-coords" id="boardWrap" style="display:none">
+      <div class="coord-ranks" id="rankCoords"></div>
+      <div id="board"></div>
+      <div class="coord-files" id="fileCoords"></div>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+      <button class="btn" id="btnStart" title="Go to start">⏮</button>
+      <button class="btn" id="btnPrev"  title="Previous move">◀</button>
+      <button class="btn" id="btnNext"  title="Next move">▶</button>
+      <button class="btn" id="btnEnd"   title="Go to end">⏭</button>
+      <span class="move-counter" id="moveCtr"></span>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="kb-hint" id="kbHint" style="display:none">← → arrow keys to navigate · Home / End to jump</div>
   </div>
 
-  <div id="moves"></div>
+  <!-- Right column -->
+  <div class="right-col">
+    <div class="info-box" id="infoBox">
+      <h2>Game Info</h2>
+      <div id="infoRows"><div class="info-row"><span class="info-label">—</span></div></div>
+    </div>
+    <div class="move-list-box">
+      <h2>Moves</h2>
+      <div id="moveList"></div>
+    </div>
+  </div>
+</div>
 
-  <script>
-    let board;
-    let game = new Chess();
-    let moves = [];
-    let index = 0;
+<script>
+// ═══════════════════════════════════════════════════════
+//  PIECE UNICODE
+// ═══════════════════════════════════════════════════════
+const PIECES = {
+  wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+  bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟'
+};
 
-    function loadPGN() {
-      const file = document.getElementById("pgnSelect").value;
-      if (!file) return;
+// ═══════════════════════════════════════════════════════
+//  PGN PARSER
+// ═══════════════════════════════════════════════════════
+function parsePGN(text) {
+  // Normalize line endings
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-      const url = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
+  const games = [];
+  // Split on double-newline between a tag section and moves, or between games
+  // Strategy: find blocks starting with [
+  const blocks = text.split(/\n(?=\[)/);
 
-      fetch(url)
-        .then(r => r.text())
-        .then(pgn => {
-          game = new Chess();
-          game.load_pgn(pgn);
-          moves = game.history({ verbose: true });
-          index = 0;
+  let current = null;
+  for (let block of blocks) {
+    block = block.trim();
+    if (!block) continue;
 
-          board.position("start");
-          renderMoves();
-        });
+    if (block.startsWith('[')) {
+      // Parse tags
+      const tags = {};
+      const tagLines = block.match(/\[(\w+)\s+"([^"]*)"\]/g) || [];
+      for (const t of tagLines) {
+        const m = t.match(/\[(\w+)\s+"([^"]*)"\]/);
+        if (m) tags[m[1]] = m[2];
+      }
+      // Extract moves (everything after last tag line)
+      const lastBracket = block.lastIndexOf(']');
+      const movesText = lastBracket >= 0 ? block.slice(lastBracket + 1).trim() : '';
+      if (Object.keys(tags).length > 0) {
+        games.push({ tags, movesText, moves: parseMoves(movesText) });
+      }
+    }
+  }
+
+  return games;
+}
+
+function parseMoves(text) {
+  // Strip comments { ... } and ( ... ) variations, then tokenize
+  let t = text;
+  // Remove braced comments (possibly nested - do multiple passes)
+  for (let i = 0; i < 5; i++) t = t.replace(/\{[^{}]*\}/g, ' ');
+  // Remove parenthesized variations (simple single-level)
+  for (let i = 0; i < 5; i++) t = t.replace(/\([^()]*\)/g, ' ');
+  // Remove move numbers like 1. or 1... or 12...
+  t = t.replace(/\d+\.+/g, ' ');
+  // Remove result
+  t = t.replace(/1-0|0-1|1\/2-1\/2|\*/g, ' ');
+  // Remove NAG annotations $1 $2 etc
+  t = t.replace(/\$\d+/g, ' ');
+  // Tokenize
+  const tokens = t.trim().split(/\s+/).filter(s => s.length > 0 && s !== '--');
+  return tokens;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHESS ENGINE (position + legal move generation)
+// ═══════════════════════════════════════════════════════
+
+const FILES = 'abcdefgh';
+const RANKS = '12345678';
+
+function sq(f, r) { return f + r; } // e.g. sq(0,0) = 'a1'
+function sqToIdx(s) { return FILES.indexOf(s[0]) + (parseInt(s[1])-1)*8; }
+function idxToSq(i) { return FILES[i%8] + (Math.floor(i/8)+1); }
+function f(s) { return FILES.indexOf(s[0]); }
+function r(s) { return parseInt(s[1])-1; }
+
+class Chess {
+  constructor() { this.reset(); }
+
+  reset() {
+    // board: array of 64, index = file + rank*8
+    this.board = new Array(64).fill(null);
+    this.turn = 'w';
+    this.castling = { wK:true, wQ:true, bK:true, bQ:true };
+    this.ep = null; // en passant target square
+    this.halfmove = 0;
+    this.fullmove = 1;
+    this._setup();
+  }
+
+  _setup() {
+    const backrank = ['R','N','B','Q','K','B','N','R'];
+    for (let i=0;i<8;i++) {
+      this.board[i]    = 'w'+backrank[i];
+      this.board[i+8]  = 'wP';
+      this.board[i+48] = 'bP';
+      this.board[i+56] = 'b'+backrank[i];
+    }
+  }
+
+  get(sq) { return this.board[sqToIdx(sq)]; }
+  set(sq, p) { this.board[sqToIdx(sq)] = p; }
+
+  clone() {
+    const c = new Chess();
+    c.board = [...this.board];
+    c.turn = this.turn;
+    c.castling = {...this.castling};
+    c.ep = this.ep;
+    c.halfmove = this.halfmove;
+    c.fullmove = this.fullmove;
+    return c;
+  }
+
+  // Apply a SAN move, return true if success
+  applySAN(san) {
+    // Clean
+    const orig = san;
+    san = san.replace(/[+#!?]/g,'');
+
+    const color = this.turn;
+    const opp   = color === 'w' ? 'b' : 'w';
+
+    // Castling
+    if (san === 'O-O' || san === '0-0') {
+      return this._castle(color, 'K');
+    }
+    if (san === 'O-O-O' || san === '0-0-0') {
+      return this._castle(color, 'Q');
     }
 
-    function renderMoves() {
-      const movesDiv = document.getElementById("moves");
-      movesDiv.innerHTML = "";
+    // Parse SAN
+    let piece = 'P';
+    let promotion = null;
+    let toSq = null;
+    let fromFile = null;
+    let fromRank = null;
 
-      moves.forEach((m, i) => {
-        const span = document.createElement("span");
-        span.textContent = (i + 1) + ". " + m.san + " ";
-        if (i === index - 1) span.style.fontWeight = "bold";
-        movesDiv.appendChild(span);
-      });
+    let s = san;
+
+    // Promotion
+    const promMatch = s.match(/=?([QRBN])$/);
+    if (promMatch) {
+      promotion = promMatch[1];
+      s = s.slice(0, s.length - promMatch[0].length);
     }
 
-    function updateBoard() {
-      const g = new Chess();
-      for (let i = 0; i < index; i++) g.move(moves[i]);
-      board.position(g.fen());
-      renderMoves();
+    // Piece letter
+    if (/^[KQRBN]/.test(s)) {
+      piece = s[0];
+      s = s.slice(1);
     }
 
-    function next() {
-      if (index < moves.length) index++;
-      updateBoard();
+    // Capture x
+    s = s.replace('x','');
+
+    // Now s should be: [file][rank]toFile toRank or just toFiltoRank
+    // toSq is last 2 chars
+    if (s.length >= 2) {
+      toSq = s.slice(-2);
+      const disambig = s.slice(0, s.length-2);
+      if (disambig.length === 1) {
+        if (/[a-h]/.test(disambig)) fromFile = disambig;
+        else if (/[1-8]/.test(disambig)) fromRank = disambig;
+      } else if (disambig.length === 2) {
+        fromFile = disambig[0];
+        fromRank = disambig[1];
+      }
+    } else {
+      console.warn('Cannot parse SAN:', orig);
+      return false;
     }
 
-    function prev() {
-      if (index > 0) index--;
-      updateBoard();
+    // Find candidate piece on board
+    const candidates = [];
+    for (let i=0;i<64;i++) {
+      const p = this.board[i];
+      if (!p || p[0] !== color || p[1] !== piece) continue;
+      const sq = idxToSq(i);
+      if (fromFile && sq[0] !== fromFile) continue;
+      if (fromRank && sq[1] !== fromRank) continue;
+      if (this._canMove(sq, toSq, piece, color)) {
+        candidates.push(sq);
+      }
     }
 
-    function first() {
-      index = 0;
-      updateBoard();
+    if (candidates.length === 0) {
+      console.warn('No candidate for', orig, 'turn', color);
+      return false;
+    }
+    if (candidates.length > 1) {
+      console.warn('Multiple candidates for', orig, candidates);
     }
 
-    function last() {
-      index = moves.length;
-      updateBoard();
+    const fromSq = candidates[0];
+    this._doMove(fromSq, toSq, piece, color, promotion);
+    this.turn = opp;
+    if (opp === 'w') this.fullmove++;
+    return true;
+  }
+
+  _canMove(from, to, piece, color) {
+    // Check pseudo-legal move, then verify not in check
+    if (!this._pseudoLegal(from, to, piece, color)) return false;
+    const test = this.clone();
+    test._doMove(from, to, piece, color, 'Q'); // promotion doesn't matter for check
+    test.turn = color; // keep same turn to check own king
+    return !test._inCheck(color);
+  }
+
+  _pseudoLegal(from, to, piece, color) {
+    const ff = f(from), fr = r(from);
+    const tf = f(to),   tr = r(to);
+    const df = tf-ff, dr = tr-fr;
+    const target = this.get(to);
+    if (target && target[0] === color) return false; // can't capture own piece
+
+    const opp = color==='w'?'b':'w';
+
+    if (piece === 'P') {
+      const dir = color==='w' ? 1 : -1;
+      const startRank = color==='w' ? 1 : 6;
+      if (df === 0) {
+        if (dr === dir && !target) return true;
+        if (dr === 2*dir && fr === startRank && !target && !this.get(FILES[ff]+RANKS[fr+dir])) return true;
+      } else if (Math.abs(df)===1 && dr===dir) {
+        if (target && target[0]===opp) return true;
+        if (to === this.ep) return true;
+      }
+      return false;
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      board = Chessboard("board", "start");
-    });
-  </script>
+    if (piece === 'N') {
+      return (Math.abs(df)===2&&Math.abs(dr)===1)||(Math.abs(df)===1&&Math.abs(dr)===2);
+    }
 
+    if (piece === 'K') {
+      return Math.abs(df)<=1 && Math.abs(dr)<=1 && (df!==0||dr!==0);
+    }
+
+    if (piece === 'R' || piece === 'Q') {
+      if (df===0||dr===0) {
+        if (this._pathClear(from,to)) return true;
+      }
+    }
+    if (piece === 'B' || piece === 'Q') {
+      if (Math.abs(df)===Math.abs(dr)) {
+        if (this._pathClear(from,to)) return true;
+      }
+    }
+    return false;
+  }
+
+  _pathClear(from, to) {
+    const ff = f(from), fr = r(from);
+    const tf = f(to),   tr = r(to);
+    const sf = Math.sign(tf-ff), sr = Math.sign(tr-fr);
+    let cf = ff+sf, cr = fr+sr;
+    while (cf!==tf || cr!==tr) {
+      if (this.board[cf+cr*8]) return false;
+      cf+=sf; cr+=sr;
+    }
+    return true;
+  }
+
+  _doMove(from, to, piece, color, promotion) {
+    const opp = color==='w'?'b':'w';
+    const tf = f(to), tr = r(to);
+    const ff2 = f(from), fr2 = r(from);
+
+    // En passant capture
+    if (piece==='P' && to===this.ep && ff2!==tf) {
+      const capRank = color==='w' ? tr-1 : tr+1;
+      this.board[tf+capRank*8] = null;
+    }
+
+    // Set en passant
+    this.ep = null;
+    const dr = tr - fr2;
+    if (piece==='P' && Math.abs(dr)===2) {
+      this.ep = FILES[ff2] + RANKS[fr2+Math.sign(dr)];
+    }
+
+    // Move piece
+    const movingPiece = this.board[ff2+fr2*8];
+    this.board[tf+tr*8] = movingPiece;
+    this.board[ff2+fr2*8] = null;
+
+    // Promotion
+    if (piece==='P' && (tr===7||tr===0) && promotion) {
+      this.board[tf+tr*8] = color+promotion;
+    }
+
+    // Update castling rights
+    if (piece==='K') { this.castling[color+'K']=false; this.castling[color+'Q']=false; }
+    if (from==='a1'||to==='a1') this.castling['wQ']=false;
+    if (from==='h1'||to==='h1') this.castling['wK']=false;
+    if (from==='a8'||to==='a8') this.castling['bQ']=false;
+    if (from==='h8'||to==='h8') this.castling['bK']=false;
+  }
+
+  _castle(color, side) {
+    const opp = color==='w'?'b':'w';
+    const rank = color==='w'?'1':'8';
+    if (side==='K') {
+      if (!this.castling[color+'K']) return false;
+      const path = [FILES[5]+rank, FILES[6]+rank];
+      for (const sq of path) if (this.get(sq)) return false;
+      // Check not in check on path
+      for (const sq of [FILES[4]+rank, ...path]) {
+        const test = this.clone();
+        test.board[sqToIdx(sq)] = color+'K';
+        test.board[sqToIdx(FILES[4]+rank)] = null;
+        test.turn = color;
+        if (test._inCheck(color)) return false;
+      }
+      this.set(FILES[4]+rank, null);
+      this.set(FILES[7]+rank, null);
+      this.set(FILES[6]+rank, color+'K');
+      this.set(FILES[5]+rank, color+'R');
+    } else {
+      if (!this.castling[color+'Q']) return false;
+      const path = [FILES[3]+rank, FILES[2]+rank, FILES[1]+rank];
+      for (const sq of path) if (this.get(sq)) return false;
+      for (const sq of [FILES[4]+rank, FILES[3]+rank, FILES[2]+rank]) {
+        const test = this.clone();
+        test.board[sqToIdx(sq)] = color+'K';
+        test.board[sqToIdx(FILES[4]+rank)] = null;
+        test.turn = color;
+        if (test._inCheck(color)) return false;
+      }
+      this.set(FILES[4]+rank, null);
+      this.set(FILES[0]+rank, null);
+      this.set(FILES[2]+rank, color+'K');
+      this.set(FILES[3]+rank, color+'R');
+    }
+    this.castling[color+'K']=false;
+    this.castling[color+'Q']=false;
+    this.turn = opp;
+    if (opp==='w') this.fullmove++;
+    return true;
+  }
+
+  _inCheck(color) {
+    // Find king
+    let kingSq = null;
+    for (let i=0;i<64;i++) {
+      if (this.board[i]===color+'K') { kingSq=idxToSq(i); break; }
+    }
+    if (!kingSq) return false;
+    const opp = color==='w'?'b':'w';
+    for (let i=0;i<64;i++) {
+      const p = this.board[i];
+      if (!p||p[0]!==opp) continue;
+      const sq = idxToSq(i);
+      if (this._pseudoLegal(sq, kingSq, p[1], opp)) return true;
+    }
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI STATE
+// ═══════════════════════════════════════════════════════
+let allGames = [];
+let currentGame = null;   // { tags, moves }
+let positions = [];       // positions[i] = Chess state after i moves
+let moveIndex = 0;        // 0 = starting position, N = after N moves
+let lastFrom = null, lastTo = null;
+
+// ═══════════════════════════════════════════════════════
+//  BUILD BOARD DOM
+// ═══════════════════════════════════════════════════════
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  // Ranks 8..1, files a..h
+  for (let rank=7; rank>=0; rank--) {
+    for (let file=0; file<8; file++) {
+      const div = document.createElement('div');
+      const sqName = FILES[file]+RANKS[rank];
+      div.className = 'sq ' + ((file+rank)%2===0 ? 'dark' : 'light');
+      div.id = 'sq-'+sqName;
+      board.appendChild(div);
+    }
+  }
+
+  // Rank coords
+  const rankC = document.getElementById('rankCoords');
+  rankC.innerHTML = '';
+  for (let rank=7;rank>=0;rank--) {
+    const s = document.createElement('span');
+    s.className='coord';
+    s.textContent = rank+1;
+    rankC.appendChild(s);
+  }
+
+  // File coords
+  const fileC = document.getElementById('fileCoords');
+  fileC.innerHTML = '';
+  for (let file=0;file<8;file++) {
+    const s = document.createElement('span');
+    s.className='coord';
+    s.textContent = FILES[file];
+    fileC.appendChild(s);
+  }
+}
+
+function renderBoard(chess) {
+  for (let i=0;i<64;i++) {
+    const sqName = idxToSq(i);
+    const el = document.getElementById('sq-'+sqName);
+    if (!el) continue;
+    const file = i%8, rank = Math.floor(i/8);
+    const isLight = (file+rank)%2!==0;
+
+    // Highlight last move squares
+    const isHi = (sqName===lastFrom||sqName===lastTo);
+    el.className = 'sq ';
+    if (isHi) el.className += isLight ? 'hi-light' : 'hi-dark';
+    else       el.className += isLight ? 'light' : 'dark';
+
+    const piece = chess.board[i];
+    if (piece) {
+      el.innerHTML = `<span class="piece">${PIECES[piece]||''}</span>`;
+    } else {
+      el.innerHTML = '';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOAD GAME
+// ═══════════════════════════════════════════════════════
+function buildPositions(moves) {
+  const states = [];
+  const chess = new Chess();
+  states.push(chess.clone());
+  lastFrom = null; lastTo = null;
+  const froms = [null];
+  const tos   = [null];
+
+  for (const move of moves) {
+    // Try to detect from/to before applying (hack: check where pieces are)
+    // We'll record from/to after the fact by comparing boards
+    const before = chess.board.slice();
+    const ok = chess.applySAN(move);
+    if (!ok) {
+      console.warn('Failed to apply move:', move);
+      break;
+    }
+    // Find changed squares
+    let fromSq=null, toSq=null;
+    const after = chess.board.slice();
+    for (let i=0;i<64;i++) {
+      if (before[i]!==after[i]) {
+        if (before[i] && !after[i] && !fromSq) fromSq=idxToSq(i);
+        else if (after[i] && !before[i]) toSq=idxToSq(i);
+        else if (after[i] && before[i] && before[i]!==after[i]) toSq=idxToSq(i);
+      }
+    }
+    // Castling fix: multiple squares change
+    froms.push(fromSq);
+    tos.push(toSq);
+    states.push(chess.clone());
+  }
+  return { states, froms, tos };
+}
+
+function loadGame(idx) {
+  const game = allGames[idx];
+  if (!game) return;
+  currentGame = game;
+
+  // Build all positions
+  const { states, froms, tos } = buildPositions(game.moves);
+  positions = states;
+  window._froms = froms;
+  window._tos   = tos;
+
+  moveIndex = 0;
+  lastFrom = null; lastTo = null;
+
+  renderBoard(positions[0]);
+  updateMoveList();
+  updateInfo();
+  updateControls();
+
+  document.getElementById('boardWrap').style.display='';
+  document.getElementById('controls').style.display='flex';
+  document.getElementById('kbHint').style.display='';
+  document.getElementById('loadMsg').style.display='none';
+}
+
+function goToMove(idx) {
+  if (idx<0||idx>=positions.length) return;
+  moveIndex = idx;
+  lastFrom = window._froms[idx]||null;
+  lastTo   = window._tos[idx]||null;
+  renderBoard(positions[moveIndex]);
+  updateControls();
+  highlightMoveInList(moveIndex);
+  updateStatus();
+}
+
+function updateControls() {
+  document.getElementById('btnStart').disabled = moveIndex===0;
+  document.getElementById('btnPrev').disabled  = moveIndex===0;
+  document.getElementById('btnNext').disabled  = moveIndex>=positions.length-1;
+  document.getElementById('btnEnd').disabled   = moveIndex>=positions.length-1;
+  const total = positions.length-1;
+  const mn = Math.ceil(moveIndex/2);
+  document.getElementById('moveCtr').textContent =
+    moveIndex===0 ? 'Start' : `Move ${moveIndex} / ${total}`;
+  updateStatus();
+}
+
+function updateStatus() {
+  const el = document.getElementById('status');
+  if (!currentGame) return;
+  if (moveIndex===0) { el.textContent=''; return; }
+  const chess = positions[moveIndex];
+  const inCheck = chess._inCheck(chess.turn);
+  if (moveIndex===positions.length-1) {
+    const result = currentGame.tags.Result||'*';
+    if (result==='1-0') el.textContent='White wins';
+    else if (result==='0-1') el.textContent='Black wins';
+    else if (result==='1/2-1/2') el.textContent='Draw';
+    else el.textContent = inCheck ? (chess.turn==='w'?'Black wins':'White wins') : '';
+  } else {
+    el.textContent = inCheck ? (chess.turn==='w'?'White is in check':'Black is in check') : '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOVE LIST
+// ═══════════════════════════════════════════════════════
+function updateMoveList() {
+  const container = document.getElementById('moveList');
+  container.innerHTML = '';
+  if (!currentGame) return;
+
+  const moves = currentGame.moves;
+  for (let i=0;i<moves.length;i++) {
+    if (i%2===0) {
+      const num = document.createElement('span');
+      num.className='move-num';
+      num.textContent = (i/2+1)+'.';
+      container.appendChild(num);
+    }
+    const tok = document.createElement('span');
+    tok.className='move-token';
+    tok.textContent=moves[i];
+    tok.dataset.idx = i+1;
+    tok.onclick = () => goToMove(i+1);
+    container.appendChild(tok);
+  }
+
+  // Result
+  if (currentGame.tags.Result && currentGame.tags.Result!=='*') {
+    const res = document.createElement('span');
+    res.className='result-badge';
+    res.style.marginLeft='6px';
+    res.textContent=currentGame.tags.Result;
+    container.appendChild(res);
+  }
+}
+
+function highlightMoveInList(idx) {
+  document.querySelectorAll('.move-token').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.idx)===idx);
+    if (parseInt(el.dataset.idx)===idx) {
+      el.scrollIntoView({block:'nearest',behavior:'smooth'});
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME INFO
+// ═══════════════════════════════════════════════════════
+function updateInfo() {
+  if (!currentGame) return;
+  const tags = currentGame.tags;
+  const rows = document.getElementById('infoRows');
+  rows.innerHTML='';
+
+  const show = [
+    ['White', tags.White],
+    ['Black', tags.Black],
+    ['Date',  tags.Date],
+    ['Event', tags.Event],
+    ['Round', tags.Round],
+    ['Result',tags.Result],
+    ['ECO',   tags.ECO],
+    ['Opening', tags.Opening],
+  ];
+
+  for (const [label,val] of show) {
+    if (!val||val==='?'||val==='??'||val==='???') continue;
+    const div = document.createElement('div');
+    div.className='info-row';
+    if (label==='Result') {
+      div.innerHTML=`<span class="info-label">${label}</span><span class="result-badge">${val}</span>`;
+    } else {
+      div.innerHTML=`<span class="info-label">${label}</span><span class="info-val">${val}</span>`;
+    }
+    rows.appendChild(div);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME SELECTOR
+// ═══════════════════════════════════════════════════════
+function populateSelector() {
+  const sel = document.getElementById('gameSelect');
+  sel.innerHTML='';
+  allGames.forEach((g,i) => {
+    const opt = document.createElement('option');
+    const w = g.tags.White||'?';
+    const b = g.tags.Black||'?';
+    const d = (g.tags.Date||'').replace(/\.\?\?/,'').replace(/\?/g,'');
+    const r = g.tags.Result||'';
+    opt.value=i;
+    opt.textContent=`${i+1}. ${w} vs ${b}${d?' ('+d+')':''}  ${r}`;
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => loadGame(parseInt(sel.value));
+}
+
+// ═══════════════════════════════════════════════════════
+//  FETCH & INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  buildBoard();
+
+  const loadMsg = document.getElementById('loadMsg');
+  loadMsg.style.display='';
+
+  // Try fetching the PGN file relative to this viewer's location
+  // Works when served from the same origin
+  const pgnUrl = '../pgn/my_games.pgn';
+
+  try {
+    const resp = await fetch(pgnUrl);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+
+    allGames = parsePGN(text);
+    if (allGames.length===0) throw new Error('No games found in PGN');
+
+    loadMsg.style.display='none';
+    populateSelector();
+    loadGame(0);
+
+  } catch(err) {
+    loadMsg.innerHTML = `
+      <strong style="color:#c44">Could not load PGN file.</strong><br>
+      <small style="color:var(--muted)">${err.message}<br>
+      Make sure viewer.html is inside the /viewer/ folder and pgn/my_games.pgn exists.<br>
+      If running locally, use a local web server (e.g. <code>python -m http.server</code>).</small>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  BUTTON WIRING
+// ═══════════════════════════════════════════════════════
+document.getElementById('btnStart').onclick = () => goToMove(0);
+document.getElementById('btnPrev').onclick  = () => goToMove(moveIndex-1);
+document.getElementById('btnNext').onclick  = () => goToMove(moveIndex+1);
+document.getElementById('btnEnd').onclick   = () => goToMove(positions.length-1);
+
+document.addEventListener('keydown', e => {
+  if (!currentGame) return;
+  if (e.key==='ArrowRight'||e.key==='ArrowDown') { e.preventDefault(); goToMove(moveIndex+1); }
+  if (e.key==='ArrowLeft' ||e.key==='ArrowUp')   { e.preventDefault(); goToMove(moveIndex-1); }
+  if (e.key==='Home') { e.preventDefault(); goToMove(0); }
+  if (e.key==='End')  { e.preventDefault(); goToMove(positions.length-1); }
+});
+
+init();
+</script>
 </body>
 </html>
