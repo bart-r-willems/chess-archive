@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chess Archive Viewer v5</title>
+<title>Chess Archive Viewer v6</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap');
 
@@ -1040,6 +1040,23 @@ function updateInfo() {
     }
     rows.appendChild(div);
   }
+
+  // URL row — always last
+  const gameNumber = parseInt(document.getElementById('gameSelect').value) + 1;
+  const url = `${location.origin}${location.pathname}?game=${gameNumber}`;
+  const urlDiv = document.createElement('div');
+  urlDiv.className = 'info-row';
+  urlDiv.style.marginTop = '8px';
+  urlDiv.style.borderTop = '1px solid var(--border)';
+  urlDiv.style.paddingTop = '8px';
+  urlDiv.innerHTML = `<span class="info-label">Link</span><span class="info-val" style="font-size:0.75rem"><a href="${url}" id="gameLink" style="color:var(--gold);text-decoration:none;word-break:break-all">${url}</a></span>`;
+  rows.appendChild(urlDiv);
+
+  // One-click copy button
+  const copyDiv = document.createElement('div');
+  copyDiv.className = 'info-row';
+  copyDiv.innerHTML = `<span></span><button onclick="navigator.clipboard.writeText('${url}').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy link',1500)})" style="background:var(--surface);border:1px solid var(--border);color:var(--gold);padding:3px 10px;border-radius:3px;cursor:pointer;font-size:0.75rem">Copy link</button>`;
+  rows.appendChild(copyDiv);
 }
 
 // ═══════════════════════════════════════════════════════
