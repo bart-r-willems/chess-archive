@@ -410,35 +410,43 @@ const PIECES = {
 //  PGN PARSER
 // ═══════════════════════════════════════════════════════
 function parsePGN(text) {
-  // Normalize line endings
-  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Normalize line endings and strip BOM
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   const games = [];
-  // Split on double-newline between a tag section and moves, or between games
-  // Strategy: find blocks starting with [
-  const blocks = text.split(/\n(?=\[)/);
+  const lines = text.split('\n');
 
-  let current = null;
-  for (let block of blocks) {
-    block = block.trim();
-    if (!block) continue;
+  let tagLines  = [];
+  let moveLines = [];
+  let inTags    = false;
 
-    if (block.startsWith('[')) {
-      // Parse tags
-      const tags = {};
-      const tagLines = block.match(/\[(\w+)\s+"([^"]*)"\]/g) || [];
-      for (const t of tagLines) {
-        const m = t.match(/\[(\w+)\s+"([^"]*)"\]/);
-        if (m) tags[m[1]] = m[2];
-      }
-      // Extract moves (everything after last tag line)
-      const lastBracket = block.lastIndexOf(']');
-      const movesText = lastBracket >= 0 ? block.slice(lastBracket + 1).trim() : '';
-      if (Object.keys(tags).length > 0) {
-        games.push({ tags, movesText, moves: parseMoves(movesText) });
-      }
+  function flushGame() {
+    if (tagLines.length === 0) return;
+    const tags = {};
+    for (const line of tagLines) {
+      const m = line.match(/^\s*\[(\w+)\s+"((?:[^"\\]|\\.)*)"\s*\]/);
+      if (m) tags[m[1]] = m[2].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    if (Object.keys(tags).length === 0) { tagLines=[]; moveLines=[]; return; }
+    const movesText = moveLines.join(' ');
+    games.push({ tags, movesText, moves: parseMoves(movesText) });
+    tagLines  = [];
+    moveLines = [];
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('[')) {
+      if (!inTags && moveLines.length > 0) flushGame();
+      inTags = true;
+      tagLines.push(trimmed);
+    } else if (inTags && trimmed === '') {
+      inTags = false;
+    } else if (!inTags) {
+      moveLines.push(trimmed);
     }
   }
+  flushGame();
 
   return games;
 }
@@ -1043,10 +1051,14 @@ async function init() {
   try {
     const resp = await fetch(pgnUrl);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const text = await resp.text();
+    // ChessBase often exports Windows-1252; decode properly
+    const buf  = await resp.arrayBuffer();
+    const text = new TextDecoder('windows-1252').decode(buf);
 
     allGames = parsePGN(text);
     if (allGames.length===0) throw new Error('No games found in PGN');
+    // Debug: log first game to console so you can verify parsing
+    console.log('[PGN] Loaded', allGames.length, 'games. First game tags:', allGames[0].tags, 'moves:', allGames[0].moves.slice(0,10));
 
     loadMsg.style.display='none';
     populateSelector();
