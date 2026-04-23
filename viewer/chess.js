@@ -25,7 +25,7 @@ let SETTINGS = { ...DEFAULTS };
 
 async function loadSettings() {
   try {
-    const r = await fetch('./settings.json');
+    const r = await fetch('./settings.json?v=1');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     SETTINGS = { ...DEFAULTS, ...data };
