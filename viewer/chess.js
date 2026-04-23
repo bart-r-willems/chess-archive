@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 9b';
+const BUILD = 'build: 9c';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -38,8 +38,7 @@ const PIECE_FILE = {
 
 function pieceUrl(code) {
   const stem = PIECE_FILE[code];
-  // return stem ? `../pieces/${SETTINGS.pieces}/${stem}.svg` : null;
-  return stem ? `pieces/merida/${stem}.svg` : null;
+  return stem ? `pieces/${SETTINGS.pieces}/${stem}.svg` : null;
 }
 
 // ═══════════════════════════════════════════════════════
