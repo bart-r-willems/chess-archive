@@ -7,8 +7,9 @@
 </head>
 
 <body onload="startPgnViewer()">
-  <h1>PGN Viewer v3</h1>
+  <h1>PGN Viewer v4</h1>
 
+  <p>Select a PGN file:</p>
   <select id="pgnSelect" onchange="loadPGN()">
     <option value="">-- choose a file --</option>
     <option value="my_games.pgn">My Games</option>
@@ -18,6 +19,7 @@
 
   <script>
     function startPgnViewer() {
+      // Required initialization for pgn4web
       pgn4web_boardID = "board";
       pgn4web_init();
     }
@@ -26,7 +28,7 @@
       var file = document.getElementById("pgnSelect").value;
       if (!file) return;
 
-      // Build the full URL for your repo
+      // Build the correct absolute URL for GitHub Pages
       var fullURL = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
 
       // Load the PGN
