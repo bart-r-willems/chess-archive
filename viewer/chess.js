@@ -3,40 +3,42 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 8';
+const BUILD = 'build: 9';
 
 // ═══════════════════════════════════════════════════════
-//  PIECE IMAGES — cburnett SVG set (same as Lichess)
+//  SETTINGS
 // ═══════════════════════════════════════════════════════
-// Piece filename map (color+type -> filename stem)
+const DEFAULTS = {
+  pieces:  'merida',
+  squares: 'green',
+  pgn:     '../pgn/my_games.pgn',
+};
+
+let SETTINGS = { ...DEFAULTS };
+
+async function loadSettings() {
+  try {
+    const r = await fetch('./settings.json');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    SETTINGS = { ...DEFAULTS, ...data };
+    console.log('[settings] loaded:', SETTINGS);
+  } catch(e) {
+    console.warn('[settings] could not load settings.json, using defaults:', e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PIECE IMAGES
+// ═══════════════════════════════════════════════════════
 const PIECE_FILE = {
   wK:'wk', wQ:'wq', wR:'wr', wB:'wb', wN:'wn', wP:'wp',
   bK:'bk', bQ:'bq', bR:'br', bB:'bb', bN:'bn', bP:'bp',
 };
 
-// Candidate base paths to try, in order
-const PIECE_BASE_PATHS = [
-  '../pieces/',       // viewer/viewer.html -> pieces/ at repo root
-  './pieces/',        // if viewer.html is at repo root
-  '/chess-archive/pieces/',  // absolute path for GitHub Pages
-  'pieces/',          // relative, no parent
-];
-
-let PIECE_BASE = '../pieces/'; // default, overridden after probe
-
-async function probePiecePath() {
-  for (const base of PIECE_BASE_PATHS) {
-    try {
-      const r = await fetch(base + 'wk.svg', {method:'HEAD'});
-      if (r.ok) { PIECE_BASE = base; console.log('[pieces] found at', base); return; }
-    } catch(e) {}
-  }
-  console.warn('[pieces] could not auto-detect piece path, using default');
-}
-
 function pieceUrl(code) {
   const stem = PIECE_FILE[code];
-  return stem ? PIECE_BASE + stem + '.svg' : null;
+  return stem ? `../pieces/${SETTINGS.pieces}/${stem}.svg` : null;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -713,16 +715,13 @@ function populateSelector() {
 // ═══════════════════════════════════════════════════════
 async function init() {
   document.getElementById('buildBadge').textContent = BUILD;
+  await loadSettings();
   buildBoard();
 
   const loadMsg = document.getElementById('loadMsg');
   loadMsg.style.display='';
 
-  // Try fetching the PGN file relative to this viewer's location
-  // Works when served from the same origin
-  const pgnUrl = '../pgn/my_games.pgn';
-
-  await probePiecePath();
+  const pgnUrl = SETTINGS.pgn;
 
   try {
     const resp = await fetch(pgnUrl);
