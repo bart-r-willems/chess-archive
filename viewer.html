@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Archive Viewer</title>
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+<header>
+  <h1>♟ Chess Archive</h1>
+  <span>PGN Viewer</span>
+  <span id="buildBadge" style="margin-left:auto;font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;align-self:center;"></span>
+</header>
+
+<div class="main">
+  <!-- Left column -->
+  <div class="left-col">
+    <div class="game-select-wrap">
+      <label>Select File</label>
+      <select id="pgnSelect"><option>Loading…</option></select>
+    </div>
+
+    <div class="game-select-wrap">
+      <label>Select Game</label>
+      <select id="gameSelect"><option>Loading PGN…</option></select>
+    </div>
+
+    <div id="loadMsg">Fetching game file…</div>
+
+    <div class="board-area" id="boardWrap" style="display:none">
+      <!-- Eval bar -->
+      <div class="eval-col">
+        <div class="eval-bar-wrap" id="evalBarWrap">
+          <div class="eval-bar-black" id="evalBarBlack"></div>
+          <div class="eval-bar-white" id="evalBarWhite"></div>
+        </div>
+        <div class="eval-score" id="evalScore">—</div>
+      </div>
+      <!-- Board + coords -->
+      <div class="board-with-coords" style="position:relative">
+        <div class="coord-ranks" id="rankCoords"></div>
+        <div style="position:relative">
+          <div id="board"></div>
+          <!-- Arrow SVG overlay -->
+          <svg id="arrowLayer" style="position:absolute;top:0;left:0;width:512px;height:512px;pointer-events:none;" viewBox="0 0 512 512"></svg>
+        </div>
+        <div class="coord-files" id="fileCoords"></div>
+        <div id="resultPopup"><div class="popup-inner" id="popupInner"></div></div>
+      </div>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+      <button class="btn" id="btnStart" title="Go to start">⏮</button>
+      <button class="btn" id="btnPrev"  title="Previous move">◀</button>
+      <button class="btn" id="btnNext"  title="Next move">▶</button>
+      <button class="btn" id="btnEnd"   title="Go to end">⏭</button>
+      <span class="move-counter" id="moveCtr"></span>
+      <button class="btn btn-analyse" id="btnAnalyse" title="Toggle Stockfish analysis">⚡ Analyse</button>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="kb-hint" id="kbHint" style="display:none">← → arrow keys to navigate · Home / End to jump</div>
+  </div>
+
+  <!-- Right column -->
+  <div class="right-col">
+    <div class="info-box" id="infoBox">
+      <h2>Game Info</h2>
+      <div id="infoRows"><div class="info-row"><span class="info-label">—</span></div></div>
+    </div>
+    <div class="move-list-box">
+      <h2>Moves</h2>
+      <div id="moveList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="chess.js?v=13"></script>
+</body>
+</html>
