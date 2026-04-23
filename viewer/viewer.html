@@ -7,29 +7,30 @@
 </head>
 
 <body onload="startPgnViewer()">
-  <h1>PGN Viewer v2</h1>
+  <h1>PGN Viewer v3</h1>
 
   <select id="pgnSelect" onchange="loadPGN()">
     <option value="">-- choose a file --</option>
-    <option value="../pgn/my_games.pgn">All games</option>
+    <option value="my_games.pgn">My Games</option>
   </select>
 
   <div id="board" style="margin-top:20px;"></div>
 
   <script>
     function startPgnViewer() {
-      // required initialization
       pgn4web_boardID = "board";
       pgn4web_init();
     }
 
     function loadPGN() {
       var file = document.getElementById("pgnSelect").value;
-      if (file) {
-        // full URL required on GitHub Pages
-        var fullURL = window.location.origin + window.location.pathname.replace("viewer/viewer.html","") + file.replace("..","");
-        pgn4web_load_pgn_url(fullURL);
-      }
+      if (!file) return;
+
+      // Build the full URL for your repo
+      var fullURL = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
+
+      // Load the PGN
+      pgn4web_load_pgn_url(fullURL);
     }
   </script>
 </body>
