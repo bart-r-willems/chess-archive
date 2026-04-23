@@ -1,5 +1,5 @@
 {
-  "pieces":        "merida",
+  "pieces":        "leipzig",
   "squares":       "green",
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
