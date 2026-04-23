@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 11';
+const BUILD = 'build: 12';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -15,8 +15,9 @@ const DEFAULTS = {
     { label: 'My Games', file: '../pgn/my_games.pgn' }
   ],
   // Asset paths relative to viewer.html
-  piecesRoot:  './pieces/',
-  squaresRoot: './squares/',
+  piecesRoot:    './pieces/',
+  squaresRoot:   './squares/',
+  popupDuration: 1500,   // ms — game-end result popup display time
 };
 
 let SETTINGS = { ...DEFAULTS };
@@ -556,7 +557,7 @@ function showResultPopup(text) {
   const inner = document.getElementById('popupInner');
   inner.textContent = text;
   popup.classList.add('show');
-  setTimeout(() => popup.classList.remove('show'), 600);
+  setTimeout(() => popup.classList.remove('show'), SETTINGS.popupDuration ?? 1500);
 }
 
 function goToMove(idx, silent=false) {
@@ -692,7 +693,7 @@ function updateInfo() {
   urlDiv.style.marginTop = '8px';
   urlDiv.style.borderTop = '1px solid var(--border)';
   urlDiv.style.paddingTop = '8px';
-  urlDiv.innerHTML = `<span class="info-label">Link</span><span class="info-val" style="font-size:0.75rem"><a href="${url}" id="gameLink" style="color:var(--gold);text-decoration:none;word-break:break-all">${url}</a></span>`;
+  urlDiv.innerHTML = `<span class="info-label">Link</span><span class="info-val"><a href="${url}" id="gameLink" style="color:var(--gold);text-decoration:none;font-size:0.83rem">Link to this game</a></span>`;
   rows.appendChild(urlDiv);
 
   // One-click copy button
