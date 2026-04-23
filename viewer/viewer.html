@@ -29,11 +29,26 @@
 
     <div id="loadMsg">Fetching game file…</div>
 
-    <div class="board-with-coords" id="boardWrap" style="position:relative;display:none">
-      <div class="coord-ranks" id="rankCoords"></div>
-      <div id="board"></div>
-      <div class="coord-files" id="fileCoords"></div>
-      <div id="resultPopup"><div class="popup-inner" id="popupInner"></div></div>
+    <div class="board-area" id="boardWrap" style="display:none">
+      <!-- Eval bar -->
+      <div class="eval-col">
+        <div class="eval-bar-wrap" id="evalBarWrap">
+          <div class="eval-bar-black" id="evalBarBlack"></div>
+          <div class="eval-bar-white" id="evalBarWhite"></div>
+        </div>
+        <div class="eval-score" id="evalScore">—</div>
+      </div>
+      <!-- Board + coords -->
+      <div class="board-with-coords" style="position:relative">
+        <div class="coord-ranks" id="rankCoords"></div>
+        <div style="position:relative">
+          <div id="board"></div>
+          <!-- Arrow SVG overlay -->
+          <svg id="arrowLayer" style="position:absolute;top:0;left:0;width:512px;height:512px;pointer-events:none;" viewBox="0 0 512 512"></svg>
+        </div>
+        <div class="coord-files" id="fileCoords"></div>
+        <div id="resultPopup"><div class="popup-inner" id="popupInner"></div></div>
+      </div>
     </div>
 
     <div class="controls" id="controls" style="display:none">
@@ -42,6 +57,7 @@
       <button class="btn" id="btnNext"  title="Next move">▶</button>
       <button class="btn" id="btnEnd"   title="Go to end">⏭</button>
       <span class="move-counter" id="moveCtr"></span>
+      <button class="btn btn-analyse" id="btnAnalyse" title="Toggle Stockfish analysis">⚡ Analyse</button>
     </div>
 
     <div class="status" id="status"></div>
@@ -61,6 +77,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=12"></script>
+<script src="chess.js?v=13"></script>
 </body>
 </html>

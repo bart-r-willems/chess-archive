@@ -109,10 +109,51 @@
 
   #gameSelect:focus { border-color: var(--gold-dim); }
 
-  /* Board */
-  .board-wrap {
-    position: relative;
-    display: inline-block;
+  /* Board area — eval bar + board side by side */
+  .board-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Eval bar column */
+  .eval-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .eval-bar-wrap {
+    width: 20px;
+    height: 512px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+
+  .eval-bar-black {
+    background: #1a1916;
+    transition: flex 0.4s ease;
+    flex: 50;
+  }
+
+  .eval-bar-white {
+    background: #f0f0e8;
+    transition: flex 0.4s ease;
+    flex: 50;
+  }
+
+  .eval-score {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: center;
+    min-height: 1em;
   }
 
   .board-with-coords {
@@ -199,8 +240,21 @@
   .btn:hover { border-color: var(--gold-dim); color: var(--gold); }
   .btn:disabled { opacity: 0.35; cursor: default; }
 
-  .move-counter {
+  .btn-analyse {
     margin-left: auto;
+    border-color: var(--gold-dim);
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 9px 12px;
+  }
+
+  .btn-analyse.active {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(201,168,76,0.08);
+  }
+
+  .move-counter {
     font-family: 'Source Code Pro', monospace;
     font-size: 0.85rem;
     color: var(--muted);

@@ -7,5 +7,6 @@
   ],
   "piecesRoot":    "./pieces/",
   "squaresRoot":   "./squares/",
-  "popupDuration": 1500
+  "popupDuration":  1500,
+  "analyseDepth":   18
 }

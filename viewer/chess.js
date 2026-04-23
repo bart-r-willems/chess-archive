@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 12';
+const BUILD = 'build: 13';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -17,7 +17,8 @@ const DEFAULTS = {
   // Asset paths relative to viewer.html
   piecesRoot:    './pieces/',
   squaresRoot:   './squares/',
-  popupDuration: 1500,   // ms — game-end result popup display time
+  popupDuration:  1500,  // ms — game-end result popup display time
+  analyseDepth:   18,    // Stockfish search depth
 };
 
 let SETTINGS = { ...DEFAULTS };
@@ -423,6 +424,264 @@ let positions = [];       // positions[i] = Chess state after i moves
 let moveIndex = 0;        // 0 = starting position, N = after N moves
 let lastFrom = null, lastTo = null;
 
+
+// ═══════════════════════════════════════════════════════
+//  STOCKFISH ENGINE
+// ═══════════════════════════════════════════════════════
+let sfWorker      = null;   // Web Worker running Stockfish
+let sfAnalysing   = false;  // toggle state
+let sfCurrentFen  = null;   // FEN we last sent
+let sfBestMove    = null;   // e.g. 'e2e4'
+let sfPonderMove  = null;
+
+function fenFromPosition(chess) {
+  // Build FEN string from our Chess object
+  let fen = '';
+  for (let rank = 7; rank >= 0; rank--) {
+    let empty = 0;
+    for (let file = 0; file < 8; file++) {
+      const p = chess.board[file + rank * 8];
+      if (!p) { empty++; continue; }
+      if (empty) { fen += empty; empty = 0; }
+      const letter = p[1] === 'N' ? 'n' : p[1].toLowerCase();
+      fen += p[0] === 'w' ? letter.toUpperCase() : letter;
+    }
+    if (empty) fen += empty;
+    if (rank > 0) fen += '/';
+  }
+  // Active color
+  fen += ' ' + chess.turn;
+  // Castling
+  let cast = '';
+  if (chess.castling.wK) cast += 'K';
+  if (chess.castling.wQ) cast += 'Q';
+  if (chess.castling.bK) cast += 'k';
+  if (chess.castling.bQ) cast += 'q';
+  fen += ' ' + (cast || '-');
+  // En passant
+  fen += ' ' + (chess.ep || '-');
+  // Halfmove / fullmove
+  fen += ' ' + chess.halfmove + ' ' + chess.fullmove;
+  return fen;
+}
+
+function initStockfish() {
+  if (sfWorker) return; // already running
+  try {
+    sfWorker = new Worker('./stockfish.js');
+    sfWorker.onmessage = e => handleSfMessage(e.data);
+    sfWorker.onerror   = e => console.error('[stockfish] worker error:', e);
+    sfWorker.postMessage('uci');
+    sfWorker.postMessage('isready');
+    console.log('[stockfish] worker started');
+  } catch(err) {
+    console.error('[stockfish] failed to start:', err);
+    sfWorker = null;
+    alert('Could not load Stockfish. Make sure stockfish.js is in the viewer/ folder.');
+  }
+}
+
+function handleSfMessage(msg) {
+  // info depth 18 ... score cp 34 ... pv e2e4 ...
+  // info depth 18 ... score mate 3 ... pv ...
+  // bestmove e2e4 ponder c7c5
+
+  if (msg.startsWith('info') && msg.includes('score') && msg.includes(' pv ')) {
+    const depthM  = msg.match(/depth (\d+)/);
+    const cpM     = msg.match(/score cp (-?\d+)/);
+    const mateM   = msg.match(/score mate (-?\d+)/);
+    const pvM     = msg.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
+    const depth   = depthM  ? parseInt(depthM[1])  : 0;
+    const target  = SETTINGS.analyseDepth ?? 18;
+
+    // Only update display at target depth (or final info line)
+    if (depth < target - 2) return;
+
+    let cp = null;
+    if (mateM) {
+      const m = parseInt(mateM[1]);
+      cp = m > 0 ? 9999 : -9999;
+    } else if (cpM) {
+      cp = parseInt(cpM[1]);
+    }
+
+    // Flip score if it's black to move (engine always reports from side-to-move POV)
+    if (sfCurrentFen && sfCurrentFen.split(' ')[1] === 'b') {
+      if (cp !== null) cp = -cp;
+    }
+
+    if (cp !== null) updateEvalBar(cp);
+    if (pvM) {
+      sfBestMove = pvM[1];
+      drawArrows();
+    }
+  }
+
+  if (msg.startsWith('bestmove')) {
+    const parts = msg.split(' ');
+    sfBestMove  = parts[1] !== '(none)' ? parts[1] : null;
+    sfPonderMove = parts[3] || null;
+    drawArrows();
+  }
+}
+
+function analysePosition() {
+  if (!sfWorker || !sfAnalysing) return;
+  const chess = positions[moveIndex];
+  if (!chess) return;
+
+  sfBestMove = null;
+  clearArrows();
+
+  const fen = fenFromPosition(chess);
+  sfCurrentFen = fen;
+  const depth = SETTINGS.analyseDepth ?? 18;
+
+  sfWorker.postMessage('stop');
+  sfWorker.postMessage(`position fen ${fen}`);
+  sfWorker.postMessage(`go depth ${depth}`);
+}
+
+function toggleAnalyse() {
+  const btn = document.getElementById('btnAnalyse');
+  sfAnalysing = !sfAnalysing;
+  btn.classList.toggle('active', sfAnalysing);
+
+  if (sfAnalysing) {
+    initStockfish();
+    analysePosition();
+  } else {
+    if (sfWorker) sfWorker.postMessage('stop');
+    clearEvalBar();
+    clearArrows();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  EVAL BAR
+// ═══════════════════════════════════════════════════════
+// Scale: ±12 pawns = full bar (1 square = 3 pawns as requested)
+const EVAL_MAX_CP = 1200; // centipawns at which bar is full
+
+function updateEvalBar(cp) {
+  // Clamp to ±EVAL_MAX_CP
+  const clamped = Math.max(-EVAL_MAX_CP, Math.min(EVAL_MAX_CP, cp));
+  // white% = 50 + (cp / EVAL_MAX_CP) * 50
+  const whitePct = 50 + (clamped / EVAL_MAX_CP) * 50;
+  const blackPct = 100 - whitePct;
+
+  document.getElementById('evalBarWhite').style.flex = whitePct.toString();
+  document.getElementById('evalBarBlack').style.flex = blackPct.toString();
+
+  // Score label
+  let label;
+  if (cp >= 9999)       label = 'M';          // white mates
+  else if (cp <= -9999) label = 'M';          // black mates
+  else {
+    const abs = Math.abs(cp / 100).toFixed(1);
+    label = (cp >= 0 ? '+' : '−') + abs;
+  }
+  document.getElementById('evalScore').textContent = label;
+}
+
+function clearEvalBar() {
+  document.getElementById('evalBarWhite').style.flex = '50';
+  document.getElementById('evalBarBlack').style.flex = '50';
+  document.getElementById('evalScore').textContent = '—';
+}
+
+// ═══════════════════════════════════════════════════════
+//  ARROWS
+// ═══════════════════════════════════════════════════════
+function sqCenter(sqName) {
+  // Returns {x, y} pixel centre of a square on the 512×512 board
+  const file = FILES.indexOf(sqName[0]);
+  const rank = parseInt(sqName[1]) - 1;
+  return {
+    x: file * 64 + 32,
+    y: (7 - rank) * 64 + 32
+  };
+}
+
+function makeArrow(fromSq, toSq, color, opacity) {
+  const from = sqCenter(fromSq);
+  const to   = sqCenter(toSq);
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const ux = dx/len, uy = dy/len;
+
+  // Shorten tail and head so arrow sits inside squares
+  const tailOffset = 12;
+  const headOffset = 18;
+  const x1 = from.x + ux * tailOffset;
+  const y1 = from.y + uy * tailOffset;
+  const x2 = to.x   - ux * headOffset;
+  const y2 = to.y   - uy * headOffset;
+
+  // Arrow shaft
+  const shaft = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  shaft.setAttribute('x1', x1); shaft.setAttribute('y1', y1);
+  shaft.setAttribute('x2', x2); shaft.setAttribute('y2', y2);
+  shaft.setAttribute('stroke', color);
+  shaft.setAttribute('stroke-width', '8');
+  shaft.setAttribute('stroke-linecap', 'round');
+  shaft.setAttribute('opacity', opacity);
+
+  // Arrowhead (triangle)
+  const ang = Math.atan2(dy, dx);
+  const hw = 14, hl = 20; // head width, length
+  const tip = { x: to.x - ux*4, y: to.y - uy*4 };
+  const lx = tip.x - hl*Math.cos(ang) + hw*Math.sin(ang);
+  const ly = tip.y - hl*Math.sin(ang) - hw*Math.cos(ang);
+  const rx = tip.x - hl*Math.cos(ang) - hw*Math.sin(ang);
+  const ry = tip.y - hl*Math.sin(ang) + hw*Math.cos(ang);
+
+  const head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  head.setAttribute('points', `${tip.x},${tip.y} ${lx},${ly} ${rx},${ry}`);
+  head.setAttribute('fill', color);
+  head.setAttribute('opacity', opacity);
+
+  return [shaft, head];
+}
+
+function drawArrows() {
+  clearArrows();
+  const svg = document.getElementById('arrowLayer');
+  if (!svg) return;
+
+  // Played move (lastFrom -> lastTo)
+  const playedFrom = lastFrom;
+  const playedTo   = lastTo;
+
+  // Best move from engine
+  const bestFrom = sfBestMove ? sfBestMove.slice(0,2) : null;
+  const bestTo   = sfBestMove ? sfBestMove.slice(2,4) : null;
+
+  const sameMove = bestFrom && playedFrom &&
+                   bestFrom === playedFrom && bestTo === playedTo;
+
+  if (sameMove) {
+    // Gold: played move was the best move
+    makeArrow(playedFrom, playedTo, '#c9a84c', '0.85').forEach(el => svg.appendChild(el));
+  } else {
+    // Blue: played move
+    if (playedFrom && playedTo) {
+      makeArrow(playedFrom, playedTo, '#4a90d9', '0.75').forEach(el => svg.appendChild(el));
+    }
+    // Green: best move
+    if (bestFrom && bestTo) {
+      makeArrow(bestFrom, bestTo, '#4caf50', '0.85').forEach(el => svg.appendChild(el));
+    }
+  }
+}
+
+function clearArrows() {
+  const svg = document.getElementById('arrowLayer');
+  if (svg) svg.innerHTML = '';
+}
+
 // ═══════════════════════════════════════════════════════
 //  BUILD BOARD DOM
 // ═══════════════════════════════════════════════════════
@@ -541,6 +800,8 @@ function loadGame(idx) {
   lastFrom = null; lastTo = null;
 
   renderBoard(positions[0]);
+  clearArrows();
+  clearEvalBar();
   updateMoveList();
   updateInfo();
   updateControls();
@@ -578,6 +839,9 @@ function goToMove(idx, silent=false) {
                  result === '1/2-1/2' ? '½ – ½' : '∗';
     showResultPopup(text);
   }
+  // Trigger engine analysis if active
+  if (sfAnalysing) analysePosition();
+  else drawArrows(); // still draw played-move arrow
 }
 
 function updateControls() {
@@ -806,6 +1070,7 @@ async function init() {
 // ═══════════════════════════════════════════════════════
 //  BUTTON WIRING
 // ═══════════════════════════════════════════════════════
+document.getElementById('btnAnalyse').onclick = toggleAnalyse;
 document.getElementById('btnStart').onclick = () => goToMove(0);
 document.getElementById('btnPrev').onclick  = () => goToMove(moveIndex-1);
 document.getElementById('btnNext').onclick  = () => goToMove(moveIndex+1);
