@@ -2,18 +2,19 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>PGN Viewer</title>
-  <script src="pgn4web.js"></script>
+  <title>PGN Viewer v7</title>
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
 
   <style>
-    #boardTable { border: 1px solid #444; }
-    #moves { width: 400px; height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 5px; }
+    #board { width: 400px; margin-bottom: 20px; }
+    #moves { width: 400px; height: 250px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
   </style>
 </head>
 
-<body onload="startPgnViewer()">
-
-  <h1>PGN Viewer v6</h1>
+<body>
+  <h1>PGN Viewer</h1>
 
   <p>Select a PGN file:</p>
   <select id="pgnSelect" onchange="loadPGN()">
@@ -21,43 +22,33 @@
     <option value="my_games.pgn">My Games</option>
   </select>
 
-  <h2>Board</h2>
-
-  <!-- REQUIRED BOARD STRUCTURE -->
-  <table id="boardTable">
-    <tr>
-      <td>
-        <div id="board"></div>
-      </td>
-    </tr>
-  </table>
-
-  <h2>Moves</h2>
+  <div id="board"></div>
   <div id="moves"></div>
 
-  <!-- REQUIRED CONTROLS -->
-  <div>
-    <button onclick="pgn4web_moveFirst()">|◀</button>
-    <button onclick="pgn4web_movePrevious()">◀</button>
-    <button onclick="pgn4web_moveNext()">▶</button>
-    <button onclick="pgn4web_moveLast()">▶|</button>
-  </div>
-
   <script>
-    function startPgnViewer() {
-      pgn4web_boardID = "board";
-      pgn4web_movelistID = "moves";
-      pgn4web_init();
-    }
+    let board;
+    let game = new Chess();
 
     function loadPGN() {
-      var file = document.getElementById("pgnSelect").value;
+      const file = document.getElementById("pgnSelect").value;
       if (!file) return;
 
-      var fullURL = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
+      const url = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
 
-      pgn4web_load_pgn_url(fullURL);
+      fetch(url)
+        .then(response => response.text())
+        .then(pgn => {
+          game.load_pgn(pgn);
+          board.position(game.fen());
+          document.getElementById("moves").innerHTML = pgn.replace(/\n/g, "<br>");
+        });
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      board = Chessboard("board", {
+        position: "start"
+      });
+    });
   </script>
 
 </body>
