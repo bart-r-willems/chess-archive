@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 10';
+const BUILD = 'build: 11';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -11,7 +11,9 @@ const BUILD = 'build: 10';
 const DEFAULTS = {
   pieces:  'merida',
   squares: 'green',
-  pgn:     '../pgn/my_games.pgn',
+  pgnFiles: [
+    { label: 'My Games', file: '../pgn/my_games.pgn' }
+  ],
   // Asset paths relative to viewer.html
   piecesRoot:  './pieces/',
   squaresRoot: './squares/',
@@ -683,7 +685,8 @@ function updateInfo() {
 
   // URL row — always last
   const gameNumber = parseInt(document.getElementById('gameSelect').value) + 1;
-  const url = `${location.origin}${location.pathname}?game=${gameNumber}`;
+  const pgnIdx     = parseInt(document.getElementById('pgnSelect').value) || 0;
+  const url = `${location.origin}${location.pathname}?pgn=${pgnIdx}&game=${gameNumber}`;
   const urlDiv = document.createElement('div');
   urlDiv.className = 'info-row';
   urlDiv.style.marginTop = '8px';
@@ -697,6 +700,67 @@ function updateInfo() {
   copyDiv.className = 'info-row';
   copyDiv.innerHTML = `<span></span><button onclick="navigator.clipboard.writeText('${url}').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy link',1500)})" style="background:var(--surface);border:1px solid var(--border);color:var(--gold);padding:3px 10px;border-radius:3px;cursor:pointer;font-size:0.75rem">Copy link</button>`;
   rows.appendChild(copyDiv);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PGN FILE SELECTOR
+// ═══════════════════════════════════════════════════════
+function populatePgnSelector(selectedIdx) {
+  const sel = document.getElementById('pgnSelect');
+  sel.innerHTML = '';
+  (SETTINGS.pgnFiles || []).forEach((f, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = f.label || f.file;
+    sel.appendChild(opt);
+  });
+  sel.value = selectedIdx || 0;
+  sel.onchange = () => loadPgn(parseInt(sel.value));
+}
+
+async function loadPgn(fileIdx) {
+  const files = SETTINGS.pgnFiles || [];
+  const entry = files[fileIdx];
+  if (!entry) return;
+
+  const loadMsg = document.getElementById('loadMsg');
+  loadMsg.style.display = '';
+  loadMsg.textContent = 'Loading…';
+
+  // Hide board while loading new file
+  document.getElementById('boardWrap').style.display = 'none';
+  document.getElementById('controls').style.display  = 'none';
+  document.getElementById('kbHint').style.display    = 'none';
+
+  try {
+    const resp = await fetch(entry.file);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const buf  = await resp.arrayBuffer();
+    const text = new TextDecoder('windows-1252').decode(buf);
+
+    allGames = parsePGN(text);
+    if (allGames.length === 0) throw new Error('No games found in PGN');
+    console.log('[PGN] Loaded', allGames.length, 'games from', entry.file);
+
+    loadMsg.style.display = 'none';
+    populateSelector();
+
+    // Honour ?game= param only on initial load (fileIdx from URL)
+    const params = new URLSearchParams(window.location.search);
+    const pgnParam  = params.get('pgn');
+    const gameParam = params.get('game');
+    const fromUrl   = pgnParam !== null && parseInt(pgnParam) === fileIdx;
+    const gameIdx   = fromUrl && gameParam
+      ? Math.min(Math.max(parseInt(gameParam) - 1, 0), allGames.length - 1)
+      : 0;
+
+    loadGame(gameIdx);
+    document.getElementById('gameSelect').value = gameIdx;
+
+  } catch(err) {
+    loadMsg.innerHTML = `<strong style="color:#c44">Could not load PGN.</strong><br>
+      <small style="color:var(--muted)">${err.message}</small>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -726,40 +790,16 @@ async function init() {
   await loadSettings();
   buildBoard();
 
-  const loadMsg = document.getElementById('loadMsg');
-  loadMsg.style.display='';
+  // Determine which PGN file to load — honour ?pgn= URL param
+  const params   = new URLSearchParams(window.location.search);
+  const pgnParam = params.get('pgn');
+  const files    = SETTINGS.pgnFiles || [];
+  const fileIdx  = pgnParam !== null
+    ? Math.min(Math.max(parseInt(pgnParam), 0), files.length - 1)
+    : 0;
 
-  const pgnUrl = SETTINGS.pgn;
-
-  try {
-    const resp = await fetch(pgnUrl);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    // ChessBase often exports Windows-1252; decode properly
-    const buf  = await resp.arrayBuffer();
-    const text = new TextDecoder('windows-1252').decode(buf);
-
-    allGames = parsePGN(text);
-    if (allGames.length===0) throw new Error('No games found in PGN');
-    // Debug: log first game to console so you can verify parsing
-    console.log('[PGN] Loaded', allGames.length, 'games. First game tags:', allGames[0].tags, 'moves:', allGames[0].moves.slice(0,10));
-
-    loadMsg.style.display='none';
-    populateSelector();
-    // Check for ?game=N in the URL (1-based, matching the dropdown labels)
-    const params = new URLSearchParams(window.location.search);
-    const gameParam = params.get('game');
-    const gameIdx = gameParam ? Math.min(Math.max(parseInt(gameParam) - 1, 0), allGames.length - 1) : 0;
-    loadGame(gameIdx);
-    // Sync the dropdown to the selected game
-    document.getElementById('gameSelect').value = gameIdx;
-
-  } catch(err) {
-    loadMsg.innerHTML = `
-      <strong style="color:#c44">Could not load PGN file.</strong><br>
-      <small style="color:var(--muted)">${err.message}<br>
-      Make sure viewer.html is inside the /viewer/ folder and pgn/my_games.pgn exists.<br>
-      If running locally, use a local web server (e.g. <code>python -m http.server</code>).</small>`;
-  }
+  populatePgnSelector(fileIdx);
+  await loadPgn(fileIdx);
 }
 
 // ═══════════════════════════════════════════════════════

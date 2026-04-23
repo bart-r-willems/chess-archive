@@ -1,7 +1,10 @@
 {
   "pieces":      "merida",
   "squares":     "green",
-  "pgn":         "../pgn/my_games.pgn",
+  "pgnFiles": [
+    { "label": "My Games",              "file": "../pgn/my_games.pgn" },
+    { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
+  ],
   "piecesRoot":  "./pieces/",
   "squaresRoot": "./squares/"
 }
