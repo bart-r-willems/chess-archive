@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 9c';
+const BUILD = 'build: 10';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -12,6 +12,9 @@ const DEFAULTS = {
   pieces:  'merida',
   squares: 'green',
   pgn:     '../pgn/my_games.pgn',
+  // Asset paths relative to viewer.html
+  piecesRoot:  './pieces/',
+  squaresRoot: './squares/',
 };
 
 let SETTINGS = { ...DEFAULTS };
@@ -38,7 +41,13 @@ const PIECE_FILE = {
 
 function pieceUrl(code) {
   const stem = PIECE_FILE[code];
-  return stem ? `pieces/${SETTINGS.pieces}/${stem}.svg` : null;
+  const root = SETTINGS.piecesRoot || './pieces/';
+  return stem ? `${root}${SETTINGS.pieces}/${stem}.svg` : null;
+}
+
+function squareUrl(isLight) {
+  const root = SETTINGS.squaresRoot || './squares/';
+  return `${root}${SETTINGS.squares}/${isLight ? 'white' : 'black'}.png`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -420,10 +429,13 @@ function buildBoard() {
   // Ranks 8..1, files a..h
   for (let rank=7; rank>=0; rank--) {
     for (let file=0; file<8; file++) {
+      const isLight = (file+rank)%2!==0;
       const div = document.createElement('div');
       const sqName = FILES[file]+RANKS[rank];
-      div.className = 'sq ' + ((file+rank)%2===0 ? 'dark' : 'light');
+      div.className = 'sq ' + (isLight ? 'light' : 'dark');
       div.id = 'sq-'+sqName;
+      div.style.backgroundImage = `url('${squareUrl(isLight)}')`;
+      div.style.backgroundSize = '100% 100%';
       board.appendChild(div);
     }
   }
@@ -454,26 +466,22 @@ function renderBoard(chess) {
     const sqName = idxToSq(i);
     const el = document.getElementById('sq-'+sqName);
     if (!el) continue;
-    const file = i%8, rank = Math.floor(i/8);
-    const isLight = (file+rank)%2!==0;
 
-    // Highlight last move squares
+    // Highlight overlay — semi-transparent color on top of bitmap
     const isHi = (sqName===lastFrom||sqName===lastTo);
-    el.className = 'sq ';
-    if (isHi) el.className += isLight ? 'hi-light' : 'hi-dark';
-    else       el.className += isLight ? 'light' : 'dark';
+    const isLight = (file=>rank=>(file+rank)%2!==0)(i%8)(Math.floor(i/8));
+    el.className = 'sq ' + (isLight ? 'light' : 'dark');
+
+    const highlightDiv = isHi
+      ? `<div style="position:absolute;inset:0;background:${isLight ? 'rgba(205,210,50,0.5)' : 'rgba(170,162,58,0.6)'};pointer-events:none;"></div>`
+      : '';
 
     const piece = chess.board[i];
-    if (piece) {
-      const imgSrc = pieceUrl(piece);
-      if (imgSrc) {
-        el.innerHTML = `<img src="${imgSrc}" style="width:90%;height:90%;display:block;margin:auto;pointer-events:none;" draggable="false">`;
-      } else {
-        el.innerHTML = '';
-      }
-    } else {
-      el.innerHTML = '';
-    }
+    const pieceImg = piece
+      ? `<img src="${pieceUrl(piece)}" style="position:relative;width:90%;height:90%;display:block;margin:auto;pointer-events:none;" draggable="false">`
+      : '';
+
+    el.innerHTML = highlightDiv + pieceImg;
   }
 }
 

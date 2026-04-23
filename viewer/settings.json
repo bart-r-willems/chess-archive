@@ -1,4 +1,7 @@
 {
-  "pieces": "merida",
-  "squares": "green"
+  "pieces":      "merida",
+  "squares":     "green",
+  "pgn":         "../pgn/my_games.pgn",
+  "piecesRoot":  "./pieces/",
+  "squaresRoot": "./squares/"
 }

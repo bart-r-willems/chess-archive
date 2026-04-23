@@ -15,10 +15,10 @@
     --border:    #2e2c28;
     --gold:      #c9a84c;
     --gold-dim:  #7a6530;
-    --light-sq:  #ffffdd;
-    --dark-sq:   #86a666;
-    --light-hi:  #d4f06a;
-    --dark-hi:   #8db84a;
+    --light-sq:  #ffffdd;  /* fallback if bitmap missing */
+    --dark-sq:   #86a666;  /* fallback if bitmap missing */
+    --light-hi:  rgba(205,210,50,0.5);
+    --dark-hi:   rgba(170,162,58,0.6);
     --text:      #e8e0d0;
     --muted:     #7a7060;
     --accent:    #c9a84c;
@@ -174,10 +174,9 @@
     user-select: none;
   }
 
-  .sq.light { background: var(--light-sq); }
-  .sq.dark  { background: var(--dark-sq); }
-  .sq.hi-light { background: var(--light-hi); }
-  .sq.hi-dark  { background: var(--dark-hi); }
+  .sq.light { background-color: var(--light-sq); } /* fallback */
+  .sq.dark  { background-color: var(--dark-sq); }  /* fallback */
+  .sq { position: relative; overflow: hidden; }
 
   /* piece images sized via inline style */
 
@@ -427,6 +426,6 @@
   </div>
 </div>
 
-<script src="chess.js?nocache=2"></script>
+<script src="chess.js?v=10"></script>
 </body>
 </html>
