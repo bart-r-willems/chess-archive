@@ -39,7 +39,7 @@ const PIECE_FILE = {
 function pieceUrl(code) {
   const stem = PIECE_FILE[code];
   // return stem ? `../pieces/${SETTINGS.pieces}/${stem}.svg` : null;
-  return stem ? `../pieces/merida/${stem}.svg` : null;
+  return stem ? `pieces/merida/${stem}.svg` : null;
 }
 
 // ═══════════════════════════════════════════════════════
