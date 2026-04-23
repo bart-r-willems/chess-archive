@@ -2,12 +2,17 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>PGN Viewer</title>
+  <title>PGN Viewer v5</title>
   <script src="pgn4web.js"></script>
+  <style>
+    #board { width: 400px; height: 400px; }
+    #moves { width: 400px; height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 5px; }
+    #controls button { margin: 3px; }
+  </style>
 </head>
 
 <body onload="startPgnViewer()">
-  <h1>PGN Viewer v4</h1>
+  <h1>PGN Viewer</h1>
 
   <p>Select a PGN file:</p>
   <select id="pgnSelect" onchange="loadPGN()">
@@ -15,12 +20,23 @@
     <option value="my_games.pgn">My Games</option>
   </select>
 
-  <div id="board" style="margin-top:20px;"></div>
+  <h2>Board</h2>
+  <div id="board"></div>
+
+  <h2>Moves</h2>
+  <div id="moves"></div>
+
+  <div id="controls">
+    <button onclick="pgn4web_moveFirst()">|◀</button>
+    <button onclick="pgn4web_movePrevious()">◀</button>
+    <button onclick="pgn4web_moveNext()">▶</button>
+    <button onclick="pgn4web_moveLast()">▶|</button>
+  </div>
 
   <script>
     function startPgnViewer() {
-      // Required initialization for pgn4web
       pgn4web_boardID = "board";
+      pgn4web_movelistID = "moves";
       pgn4web_init();
     }
 
@@ -28,10 +44,8 @@
       var file = document.getElementById("pgnSelect").value;
       if (!file) return;
 
-      // Build the correct absolute URL for GitHub Pages
       var fullURL = "https://bart-r-willems.github.io/chess-archive/pgn/" + file;
 
-      // Load the PGN
       pgn4web_load_pgn_url(fullURL);
     }
   </script>
