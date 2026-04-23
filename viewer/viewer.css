@@ -389,6 +389,21 @@
     letter-spacing: 0.05em;
   }
 
+  /* Stockfish PV line */
+  .pv-line {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    width: 100%;
+    max-width: 556px;  /* board (512) + eval bar (20) + gap (8) + coords (22) - ε */
+    min-height: 1.4em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+    padding: 2px 0;
+  }
+
   /* Scrollbar */
   #moveList::-webkit-scrollbar { width: 4px; }
   #moveList::-webkit-scrollbar-track { background: transparent; }

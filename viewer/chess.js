@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'build: 13';
+const BUILD = 'build: 14';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -433,6 +433,8 @@ let sfAnalysing   = false;  // toggle state
 let sfCurrentFen  = null;   // FEN we last sent
 let sfBestMove    = null;   // e.g. 'e2e4'
 let sfPonderMove  = null;
+let sfPvLine      = '';     // full PV for display
+let sfPvCp        = null;   // centipawn score for PV line
 
 function fenFromPosition(chess) {
   // Build FEN string from our Chess object
@@ -482,19 +484,17 @@ function initStockfish() {
 }
 
 function handleSfMessage(msg) {
-  // info depth 18 ... score cp 34 ... pv e2e4 ...
-  // info depth 18 ... score mate 3 ... pv ...
+  // info depth 18 ... score cp 34 ... pv e2e4 c7c5 ...
   // bestmove e2e4 ponder c7c5
 
   if (msg.startsWith('info') && msg.includes('score') && msg.includes(' pv ')) {
-    const depthM  = msg.match(/depth (\d+)/);
-    const cpM     = msg.match(/score cp (-?\d+)/);
-    const mateM   = msg.match(/score mate (-?\d+)/);
-    const pvM     = msg.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
-    const depth   = depthM  ? parseInt(depthM[1])  : 0;
-    const target  = SETTINGS.analyseDepth ?? 18;
+    const depthM = msg.match(/depth (\d+)/);
+    const cpM    = msg.match(/score cp (-?\d+)/);
+    const mateM  = msg.match(/score mate (-?\d+)/);
+    const pvM    = msg.match(/ pv ((?:[a-h][1-8][a-h][1-8][qrbn]? *)+)/);
+    const depth  = depthM ? parseInt(depthM[1]) : 0;
+    const target = SETTINGS.analyseDepth ?? 18;
 
-    // Only update display at target depth (or final info line)
     if (depth < target - 2) return;
 
     let cp = null;
@@ -505,33 +505,45 @@ function handleSfMessage(msg) {
       cp = parseInt(cpM[1]);
     }
 
-    // Flip score if it's black to move (engine always reports from side-to-move POV)
+    // Flip score: engine reports from side-to-move POV; we want white-positive
     if (sfCurrentFen && sfCurrentFen.split(' ')[1] === 'b') {
       if (cp !== null) cp = -cp;
     }
 
-    if (cp !== null) updateEvalBar(cp);
+    if (cp !== null) { sfPvCp = cp; updateEvalBar(cp); }
+
     if (pvM) {
-      sfBestMove = pvM[1];
+      sfBestMove = pvM[1].trim().split(' ')[0]; // first move of PV
+      sfPvLine   = pvM[1].trim();               // full PV (UCI moves)
       drawArrows();
+      updatePvLine();
     }
   }
 
   if (msg.startsWith('bestmove')) {
-    const parts = msg.split(' ');
-    sfBestMove  = parts[1] !== '(none)' ? parts[1] : null;
+    const parts  = msg.split(' ');
+    sfBestMove   = parts[1] !== '(none)' ? parts[1] : null;
     sfPonderMove = parts[3] || null;
     drawArrows();
+    updatePvLine();
   }
 }
 
 function analysePosition() {
   if (!sfWorker || !sfAnalysing) return;
-  const chess = positions[moveIndex];
+
+  // Analyse the position BEFORE the current move was played,
+  // so bestMove and played move refer to the same decision point.
+  // At moveIndex 0 (start) there is no prior move, so use current position.
+  const analysisIdx = moveIndex > 0 ? moveIndex - 1 : 0;
+  const chess = positions[analysisIdx];
   if (!chess) return;
 
   sfBestMove = null;
+  sfPvLine   = '';
+  sfPvCp     = null;
   clearArrows();
+  clearPvLine();
 
   const fen = fenFromPosition(chess);
   sfCurrentFen = fen;
@@ -554,6 +566,7 @@ function toggleAnalyse() {
     if (sfWorker) sfWorker.postMessage('stop');
     clearEvalBar();
     clearArrows();
+    clearPvLine();
   }
 }
 
@@ -675,6 +688,105 @@ function drawArrows() {
       makeArrow(bestFrom, bestTo, '#4caf50', '0.85').forEach(el => svg.appendChild(el));
     }
   }
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  PV LINE DISPLAY
+// ═══════════════════════════════════════════════════════
+function uciMovesToSan(uciMoves, startChess) {
+  // Convert a list of UCI moves (e.g. ['e2e4','e7e5']) to SAN notation
+  // by replaying them on a cloned position.
+  const chess = startChess.clone();
+  const sans = [];
+  for (const uci of uciMoves) {
+    if (!uci || uci.length < 4) break;
+    const from = uci.slice(0, 2);
+    const to   = uci.slice(2, 4);
+    const prom = uci[4] ? uci[4].toUpperCase() : null;
+
+    // Find what piece is moving to build SAN
+    const piece = chess.get(from);
+    if (!piece) break;
+
+    // Build a minimal SAN for display (not full disambiguation, good enough for PV)
+    let san = '';
+    if (piece[1] !== 'P') san += piece[1];
+    san += to;
+    if (prom) san += '=' + prom;
+
+    // Apply the move
+    const ok = chess.applySAN(buildSanFromUci(chess, uci));
+    if (!ok) break;
+    sans.push(san);
+  }
+  return sans;
+}
+
+function buildSanFromUci(chess, uci) {
+  // Convert a UCI move to a SAN string our engine can apply.
+  // We search for it in the legal moves by trying applySAN on a clone.
+  // Simpler approach: just return the UCI target square with piece prefix.
+  const from = uci.slice(0,2);
+  const to   = uci.slice(2,4);
+  const prom = uci[4] ? uci[4].toUpperCase() : '';
+  const piece = chess.get(from);
+  if (!piece) return to;
+  if (piece[1] === 'K' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
+    return to[0] > from[0] ? 'O-O' : 'O-O-O';
+  }
+  const prefix = piece[1] === 'P' ? '' : piece[1];
+  return prefix + from + to + (prom ? '='+prom : ''); // use long SAN form
+}
+
+function updatePvLine() {
+  const el = document.getElementById('pvLine');
+  if (!el) return;
+  if (!sfPvLine || !sfAnalysing) { el.textContent = ''; return; }
+
+  // Get the position we analysed (before current move)
+  const analysisIdx = moveIndex > 0 ? moveIndex - 1 : 0;
+  const chess = positions[analysisIdx];
+  if (!chess) return;
+
+  const uciMoves = sfPvLine.trim().split(/\s+/).filter(Boolean);
+  const moveNums = [];
+  let moveNum = chess.fullmove;
+  let isWhite  = chess.turn === 'w';
+  const cloned = chess.clone();
+
+  for (let i = 0; i < uciMoves.length; i++) {
+    const uci = uciMoves[i];
+    if (!uci || uci.length < 4) break;
+
+    if (isWhite) moveNums.push(`${moveNum}.`);
+    else if (i === 0) moveNums.push(`${moveNum}…`); // black starts
+
+    const san = buildSanFromUci(cloned, uci);
+    moveNums.push(san);
+
+    // Advance position
+    const ok = cloned.applySAN(san);
+    if (!ok) break;
+
+    if (!isWhite) moveNum++;
+    isWhite = !isWhite;
+  }
+
+  // Score prefix
+  let scoreStr = '';
+  if (sfPvCp !== null) {
+    if (sfPvCp >= 9999)       scoreStr = '+M ';
+    else if (sfPvCp <= -9999) scoreStr = '−M ';
+    else scoreStr = (sfPvCp >= 0 ? '+' : '−') + Math.abs(sfPvCp/100).toFixed(1) + ' ';
+  }
+
+  el.textContent = scoreStr + moveNums.join(' ');
+}
+
+function clearPvLine() {
+  const el = document.getElementById('pvLine');
+  if (el) el.textContent = '';
 }
 
 function clearArrows() {
@@ -802,6 +914,7 @@ function loadGame(idx) {
   renderBoard(positions[0]);
   clearArrows();
   clearEvalBar();
+  clearPvLine();
   updateMoveList();
   updateInfo();
   updateControls();
