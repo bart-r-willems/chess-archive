@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PGN Viewer</title>
+  <script src="pgn4web.js"></script>
+</head>
+<body>
+  <h1>PGN Viewer</h1>
+
+  <p>Select a PGN file:</p>
+  <select id="pgnSelect" onchange="loadPGN()">
+    <option value="">-- choose a file --</option>
+    <option value="../pgn/my_games.pgn">My games</option>
+  </select>
+
+  <div id="board" style="margin-top:20px;"></div>
+
+  <script>
+    function loadPGN() {
+      var file = document.getElementById("pgnSelect").value;
+      if (file) {
+        pgn4web_load_pgn_file(file);
+      }
+    }
+  </script>
+</body>
+</html>
