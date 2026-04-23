@@ -396,12 +396,36 @@
 // ═══════════════════════════════════════════════════════
 //  PIECE IMAGES — cburnett SVG set (same as Lichess)
 // ═══════════════════════════════════════════════════════
-const PIECE_SVGS = {
-  wK: '../pieces/wk.svg', wQ: '../pieces/wq.svg', wR: '../pieces/wr.svg',
-  wB: '../pieces/wb.svg', wN: '../pieces/wn.svg', wP: '../pieces/wp.svg',
-  bK: '../pieces/bk.svg', bQ: '../pieces/bq.svg', bR: '../pieces/br.svg',
-  bB: '../pieces/bb.svg', bN: '../pieces/bn.svg', bP: '../pieces/bp.svg',
+// Piece filename map (color+type -> filename stem)
+const PIECE_FILE = {
+  wK:'wk', wQ:'wq', wR:'wr', wB:'wb', wN:'wn', wP:'wp',
+  bK:'bk', bQ:'bq', bR:'br', bB:'bb', bN:'bn', bP:'bp',
 };
+
+// Candidate base paths to try, in order
+const PIECE_BASE_PATHS = [
+  '../pieces/',       // viewer/viewer.html -> pieces/ at repo root
+  './pieces/',        // if viewer.html is at repo root
+  '/chess-archive/pieces/',  // absolute path for GitHub Pages
+  'pieces/',          // relative, no parent
+];
+
+let PIECE_BASE = '../pieces/'; // default, overridden after probe
+
+async function probePiecePath() {
+  for (const base of PIECE_BASE_PATHS) {
+    try {
+      const r = await fetch(base + 'wk.svg', {method:'HEAD'});
+      if (r.ok) { PIECE_BASE = base; console.log('[pieces] found at', base); return; }
+    } catch(e) {}
+  }
+  console.warn('[pieces] could not auto-detect piece path, using default');
+}
+
+function pieceUrl(code) {
+  const stem = PIECE_FILE[code];
+  return stem ? PIECE_BASE + stem + '.svg' : null;
+}
 
 // ═══════════════════════════════════════════════════════
 //  PGN PARSER
@@ -827,7 +851,7 @@ function renderBoard(chess) {
 
     const piece = chess.board[i];
     if (piece) {
-      const imgSrc = PIECE_SVGS[piece];
+      const imgSrc = pieceUrl(piece);
       if (imgSrc) {
         el.innerHTML = `<img src="${imgSrc}" style="width:90%;height:90%;display:block;margin:auto;pointer-events:none;" draggable="false">`;
       } else {
@@ -1049,6 +1073,8 @@ async function init() {
   // Try fetching the PGN file relative to this viewer's location
   // Works when served from the same origin
   const pgnUrl = '../pgn/my_games.pgn';
+
+  await probePiecePath();
 
   try {
     const resp = await fetch(pgnUrl);
