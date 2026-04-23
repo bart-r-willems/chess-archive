@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chess Archive Viewer v6</title>
+<title>Chess Archive Viewer v7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap');
 
@@ -342,6 +342,39 @@
   #moveList::-webkit-scrollbar { width: 4px; }
   #moveList::-webkit-scrollbar-track { background: transparent; }
   #moveList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Result popup ── */
+  #resultPopup {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  #resultPopup .popup-inner {
+    background: rgba(0,0,0,0.82);
+    color: #fff;
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    padding: 18px 36px;
+    border-radius: 8px;
+    border: 2px solid var(--gold);
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  #resultPopup.show .popup-inner {
+    opacity: 1;
+    transform: scale(1);
+  }
 </style>
 </head>
 <body>
@@ -361,10 +394,11 @@
 
     <div id="loadMsg">Fetching game file…</div>
 
-    <div class="board-with-coords" id="boardWrap" style="display:none">
+    <div class="board-with-coords" id="boardWrap" style="position:relative" style="display:none">
       <div class="coord-ranks" id="rankCoords"></div>
       <div id="board"></div>
       <div class="coord-files" id="fileCoords"></div>
+      <div id="resultPopup"><div class="popup-inner" id="popupInner"></div></div>
     </div>
 
     <div class="controls" id="controls" style="display:none">
@@ -926,8 +960,18 @@ function loadGame(idx) {
   document.getElementById('loadMsg').style.display='none';
 }
 
-function goToMove(idx) {
+
+function showResultPopup(text) {
+  const popup = document.getElementById('resultPopup');
+  const inner = document.getElementById('popupInner');
+  inner.textContent = text;
+  popup.classList.add('show');
+  setTimeout(() => popup.classList.remove('show'), 600);
+}
+
+function goToMove(idx, silent=false) {
   if (idx<0||idx>=positions.length) return;
+  const wasAtEnd = moveIndex === positions.length-1;
   moveIndex = idx;
   lastFrom = window._froms[idx]||null;
   lastTo   = window._tos[idx]||null;
@@ -935,6 +979,14 @@ function goToMove(idx) {
   updateControls();
   highlightMoveInList(moveIndex);
   updateStatus();
+  // Show result popup when stepping onto the last move (not when jumping directly)
+  if (!silent && !wasAtEnd && moveIndex === positions.length-1 && currentGame) {
+    const result = currentGame.tags.Result || '*';
+    const text = result === '1-0' ? 'White wins' :
+                 result === '0-1' ? 'Black wins' :
+                 result === '1/2-1/2' ? '½ – ½' : '∗';
+    showResultPopup(text);
+  }
 }
 
 function updateControls() {
@@ -1130,7 +1182,7 @@ async function init() {
 document.getElementById('btnStart').onclick = () => goToMove(0);
 document.getElementById('btnPrev').onclick  = () => goToMove(moveIndex-1);
 document.getElementById('btnNext').onclick  = () => goToMove(moveIndex+1);
-document.getElementById('btnEnd').onclick   = () => goToMove(positions.length-1);
+document.getElementById('btnEnd').onclick   = () => goToMove(positions.length-1, true);
 
 document.addEventListener('keydown', e => {
   if (!currentGame) return;
