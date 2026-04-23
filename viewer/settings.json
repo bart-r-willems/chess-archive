@@ -1,6 +1,6 @@
 {
   "pieces":        "leipzig",
-  "squares":       "black_white",
+  "squares":       "brown",
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
     { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
