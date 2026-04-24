@@ -3,36 +3,89 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.1';
+const BUILD = 'v0.2';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════════════
 const DEFAULTS = {
-  pieces:  'merida',
-  squares: 'green',
+  pieces:     'merida',
+  squares:    'green',
+  pieceSets:  ['merida'],
+  squareSets: ['green'],
   pgnFiles: [
     { label: 'My Games', file: '../pgn/my_games.pgn' }
   ],
-  // Asset paths relative to viewer.html
   piecesRoot:    './pieces/',
   squaresRoot:   './squares/',
-  popupDuration:  1500,  // ms — game-end result popup display time
-  analyseDepth:   18,    // Stockfish search depth
+  popupDuration: 1500,
+  analyseDepth:  18,
+  boardSize:     512,   // px — board width/height
 };
 
 let SETTINGS = { ...DEFAULTS };
 
 async function loadSettings() {
+  // Layer 1: built-in defaults
+  // Layer 2: settings.json (repo defaults)
+  // Layer 3: localStorage (user overrides)
   try {
-    const r = await fetch('./settings.json?v=1');
+    const r = await fetch('./settings.json');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     SETTINGS = { ...DEFAULTS, ...data };
-    console.log('[settings] loaded:', SETTINGS);
+    console.log('[settings] loaded from file:', SETTINGS);
   } catch(e) {
-    console.warn('[settings] could not load settings.json, using defaults:', e.message);
+    console.warn('[settings] settings.json not found, using built-in defaults');
+    SETTINGS = { ...DEFAULTS };
   }
+  // Apply localStorage overrides
+  const stored = loadLocalSettings();
+  if (stored) {
+    SETTINGS = { ...SETTINGS, ...stored };
+    console.log('[settings] localStorage overrides applied:', stored);
+  }
+}
+
+const LS_KEY = 'chessViewerSettings';
+
+function loadLocalSettings() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function saveLocalSettings(overrides) {
+  try {
+    // Only store keys that differ from the file settings — keeps localStorage lean
+    localStorage.setItem(LS_KEY, JSON.stringify(overrides));
+  } catch(e) { console.warn('[settings] localStorage save failed:', e); }
+}
+
+function clearLocalSettings() {
+  localStorage.removeItem(LS_KEY);
+}
+
+function exportSettings() {
+  // Build a clean settings.json merging current SETTINGS
+  const exportable = {
+    pieces:        SETTINGS.pieces,
+    squares:       SETTINGS.squares,
+    pieceSets:     SETTINGS.pieceSets,
+    squareSets:    SETTINGS.squareSets,
+    pgnFiles:      SETTINGS.pgnFiles,
+    piecesRoot:    SETTINGS.piecesRoot,
+    squaresRoot:   SETTINGS.squaresRoot,
+    popupDuration: SETTINGS.popupDuration,
+    analyseDepth:  SETTINGS.analyseDepth,
+    boardSize:     SETTINGS.boardSize,
+  };
+  const blob = new Blob([JSON.stringify(exportable, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'settings.json';
+  a.click();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -607,12 +660,13 @@ function clearEvalBar() {
 //  ARROWS
 // ═══════════════════════════════════════════════════════
 function sqCenter(sqName) {
-  // Returns {x, y} pixel centre of a square on the 512×512 board
+  const sz   = SETTINGS.boardSize || 512;
+  const sqSz = sz / 8;
   const file = FILES.indexOf(sqName[0]);
   const rank = parseInt(sqName[1]) - 1;
   return {
-    x: file * 64 + 32,
-    y: (7 - rank) * 64 + 32
+    x: file * sqSz + sqSz / 2,
+    y: (7 - rank) * sqSz + sqSz / 2
   };
 }
 
@@ -797,7 +851,36 @@ function clearArrows() {
 // ═══════════════════════════════════════════════════════
 //  BUILD BOARD DOM
 // ═══════════════════════════════════════════════════════
+function applyBoardSize() {
+  const sz   = SETTINGS.boardSize || 512;
+  const sqSz = sz / 8;
+  // Board grid
+  const board = document.getElementById('board');
+  board.style.width  = sz + 'px';
+  board.style.height = sz + 'px';
+  // Individual squares
+  document.querySelectorAll('.sq').forEach(el => {
+    el.style.width  = sqSz + 'px';
+    el.style.height = sqSz + 'px';
+  });
+  // Arrow SVG overlay
+  const svg = document.getElementById('arrowLayer');
+  if (svg) {
+    svg.style.width  = sz + 'px';
+    svg.style.height = sz + 'px';
+    svg.setAttribute('viewBox', `0 0 ${sz} ${sz}`);
+  }
+  // Eval bar height
+  const bar = document.getElementById('evalBarWrap');
+  if (bar) bar.style.height = sz + 'px';
+  // PV line max-width
+  const pv = document.getElementById('pvLine');
+  if (pv) pv.style.maxWidth = (sz + 50) + 'px';
+}
+
 function buildBoard() {
+  const sz   = SETTINGS.boardSize || 512;
+  const sqSz = sz / 8;
   const board = document.getElementById('board');
   board.innerHTML = '';
   // Ranks 8..1, files a..h
@@ -808,6 +891,8 @@ function buildBoard() {
       const sqName = FILES[file]+RANKS[rank];
       div.className = 'sq ' + (isLight ? 'light' : 'dark');
       div.id = 'sq-'+sqName;
+      div.style.width  = sqSz + 'px';
+      div.style.height = sqSz + 'px';
       div.style.backgroundImage = `url('${squareUrl(isLight)}')`;
       div.style.backgroundSize = '100% 100%';
       board.appendChild(div);
@@ -833,6 +918,8 @@ function buildBoard() {
     s.textContent = FILES[file];
     fileC.appendChild(s);
   }
+
+  applyBoardSize();
 }
 
 function renderBoard(chess) {
@@ -1180,10 +1267,258 @@ async function init() {
   await loadPgn(fileIdx);
 }
 
+
+// ═══════════════════════════════════════════════════════
+//  SETTINGS MODAL
+// ═══════════════════════════════════════════════════════
+let _localOverrides = {};  // tracks what user has changed this session
+
+function openSettings() {
+  // Rebuild the modal content fresh each time
+  buildSettingsModal();
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function applyAndSave(key, value) {
+  SETTINGS[key] = value;
+  _localOverrides[key] = value;
+  saveLocalSettings(_localOverrides);
+}
+
+function buildSettingsModal() {
+  const body = document.getElementById('settingsBody');
+  body.innerHTML = '';
+
+  // ── Tab bar ──
+  const tabs = ['Board', 'Pieces', 'PGN Files', 'Analysis'];
+  const tabBar = document.createElement('div');
+  tabBar.className = 'stab-bar';
+  tabs.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'stab' + (i === 0 ? ' stab-active' : '');
+    btn.textContent = t;
+    btn.onclick = () => {
+      document.querySelectorAll('.stab').forEach(b => b.classList.remove('stab-active'));
+      btn.classList.add('stab-active');
+      document.querySelectorAll('.stab-panel').forEach(p => p.style.display = 'none');
+      document.getElementById('stab-panel-' + i).style.display = '';
+    };
+    tabBar.appendChild(btn);
+  });
+  body.appendChild(tabBar);
+
+  // ── Panels ──
+  tabs.forEach((_, i) => {
+    const panel = document.createElement('div');
+    panel.className = 'stab-panel';
+    panel.id = 'stab-panel-' + i;
+    panel.style.display = i === 0 ? '' : 'none';
+    body.appendChild(panel);
+    if (i === 0) buildBoardTab(panel);
+    if (i === 1) buildPiecesTab(panel);
+    if (i === 2) buildPgnTab(panel);
+    if (i === 3) buildAnalysisTab(panel);
+  });
+
+  // ── Footer buttons ──
+  const footer = document.createElement('div');
+  footer.className = 'smodal-footer';
+  footer.innerHTML = `
+    <button class="btn" onclick="resetToDefaults()" style="color:var(--muted)">↺ Reset to defaults</button>
+    <button class="btn" onclick="exportSettings()" style="color:var(--gold-dim)">⬇ Export settings.json</button>
+    <button class="btn" onclick="closeSettings()" style="border-color:var(--gold);color:var(--gold)">✓ Done</button>
+  `;
+  body.appendChild(footer);
+}
+
+// ── Board tab ──
+function buildBoardTab(panel) {
+  panel.innerHTML = '<div class="srow"><h3 class="slabel">Square Style</h3></div>';
+
+  // Square set thumbnails
+  const grid = document.createElement('div');
+  grid.className = 'sthumb-grid';
+  (SETTINGS.squareSets || ['green']).forEach(name => {
+    const wrap = document.createElement('div');
+    wrap.className = 'sthumb' + (name === SETTINGS.squares ? ' sthumb-active' : '');
+    wrap.title = name;
+    // Mini board: 2×2 squares
+    const root = SETTINGS.squaresRoot || './squares/';
+    wrap.innerHTML = `
+      <div class="sthumb-board">
+        <img src="${root}${name}/white.png" class="sthumb-sq"><img src="${root}${name}/black.png" class="sthumb-sq">
+        <img src="${root}${name}/black.png" class="sthumb-sq"><img src="${root}${name}/white.png" class="sthumb-sq">
+      </div>
+      <span class="sthumb-label">${name}</span>`;
+    wrap.onclick = () => {
+      document.querySelectorAll('.sthumb').forEach(t => t.classList.remove('sthumb-active'));
+      wrap.classList.add('sthumb-active');
+      applyAndSave('squares', name);
+      buildBoard();
+      if (positions[moveIndex]) renderBoard(positions[moveIndex]);
+    };
+    grid.appendChild(wrap);
+  });
+  panel.appendChild(grid);
+
+  // Board size slider
+  const srow = document.createElement('div');
+  srow.className = 'srow';
+  const sz = SETTINGS.boardSize || 512;
+  srow.innerHTML = `
+    <h3 class="slabel">Board Size</h3>
+    <div class="sslider-wrap">
+      <input type="range" min="256" max="640" step="32" value="${sz}" id="boardSizeSlider"
+        style="width:100%">
+      <div class="sslider-labels">
+        <span>256px</span>
+        <span id="boardSizeVal">${sz}px</span>
+        <span>640px</span>
+      </div>
+    </div>`;
+  panel.appendChild(srow);
+
+  document.getElementById('boardSizeSlider').oninput = function() {
+    document.getElementById('boardSizeVal').textContent = this.value + 'px';
+    applyAndSave('boardSize', parseInt(this.value));
+    buildBoard();
+    if (positions[moveIndex]) renderBoard(positions[moveIndex]);
+    drawArrows();
+  };
+}
+
+// ── Pieces tab ──
+function buildPiecesTab(panel) {
+  panel.innerHTML = '<div class="srow"><h3 class="slabel">Piece Set</h3></div>';
+  const grid = document.createElement('div');
+  grid.className = 'sthumb-grid';
+  (SETTINGS.pieceSets || ['merida']).forEach(name => {
+    const wrap = document.createElement('div');
+    wrap.className = 'sthumb' + (name === SETTINGS.pieces ? ' sthumb-active' : '');
+    wrap.title = name;
+    const root = SETTINGS.piecesRoot || './pieces/';
+    wrap.innerHTML = `
+      <div class="sthumb-piece-wrap">
+        <img src="${root}${name}/wk.svg" class="sthumb-piece">
+        <img src="${root}${name}/bq.svg" class="sthumb-piece">
+      </div>
+      <span class="sthumb-label">${name}</span>`;
+    wrap.onclick = () => {
+      document.querySelectorAll('.sthumb').forEach(t => t.classList.remove('sthumb-active'));
+      wrap.classList.add('sthumb-active');
+      applyAndSave('pieces', name);
+      if (positions[moveIndex]) renderBoard(positions[moveIndex]);
+    };
+    grid.appendChild(wrap);
+  });
+  panel.appendChild(grid);
+}
+
+// ── PGN Files tab ──
+function buildPgnTab(panel) {
+  panel.innerHTML = '<div class="srow"><h3 class="slabel">PGN File List</h3></div>';
+
+  function renderPgnList() {
+    let list = panel.querySelector('.pgn-list');
+    if (!list) { list = document.createElement('div'); list.className='pgn-list'; panel.appendChild(list); }
+    list.innerHTML = '';
+    (SETTINGS.pgnFiles || []).forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'pgn-row';
+      row.innerHTML = `
+        <input class="pgn-label-in" value="${entry.label}" placeholder="Label">
+        <input class="pgn-file-in"  value="${entry.file}"  placeholder="Path to .pgn">
+        <button class="btn pgn-btn" title="Move up"   ${i===0?'disabled':''}>▲</button>
+        <button class="btn pgn-btn" title="Move down" ${i===SETTINGS.pgnFiles.length-1?'disabled':''}>▼</button>
+        <button class="btn pgn-btn" title="Remove" style="color:#c44">✕</button>`;
+
+      const [labelIn, fileIn, upBtn, downBtn, delBtn] = row.querySelectorAll('input,button');
+      labelIn.oninput = () => { SETTINGS.pgnFiles[i].label = labelIn.value; applyAndSave('pgnFiles', SETTINGS.pgnFiles); populatePgnSelector(parseInt(document.getElementById('pgnSelect').value)); };
+      fileIn.oninput  = () => { SETTINGS.pgnFiles[i].file  = fileIn.value;  applyAndSave('pgnFiles', SETTINGS.pgnFiles); };
+      upBtn.onclick   = () => { const a=SETTINGS.pgnFiles; [a[i-1],a[i]]=[a[i],a[i-1]]; applyAndSave('pgnFiles',a); renderPgnList(); populatePgnSelector(0); };
+      downBtn.onclick = () => { const a=SETTINGS.pgnFiles; [a[i],a[i+1]]=[a[i+1],a[i]]; applyAndSave('pgnFiles',a); renderPgnList(); populatePgnSelector(0); };
+      delBtn.onclick  = () => { SETTINGS.pgnFiles.splice(i,1); applyAndSave('pgnFiles', SETTINGS.pgnFiles); renderPgnList(); populatePgnSelector(0); };
+      list.appendChild(row);
+    });
+
+    // Add row
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn';
+    addBtn.style.marginTop = '10px';
+    addBtn.textContent = '+ Add PGN file';
+    addBtn.onclick = () => {
+      SETTINGS.pgnFiles.push({ label: 'New File', file: '../pgn/new.pgn' });
+      applyAndSave('pgnFiles', SETTINGS.pgnFiles);
+      renderPgnList();
+      populatePgnSelector(0);
+    };
+    list.appendChild(addBtn);
+  }
+  renderPgnList();
+}
+
+// ── Analysis tab ──
+function buildAnalysisTab(panel) {
+  const depth = SETTINGS.analyseDepth  || 18;
+  const popup = SETTINGS.popupDuration || 1500;
+
+  panel.innerHTML = `
+    <div class="srow">
+      <h3 class="slabel">Analysis Depth</h3>
+      <div class="sslider-wrap">
+        <input type="range" min="8" max="28" step="1" value="${depth}" id="depthSlider" style="width:100%">
+        <div class="sslider-labels">
+          <span>8</span><span id="depthVal">depth ${depth}</span><span>28</span>
+        </div>
+      </div>
+    </div>
+    <div class="srow">
+      <h3 class="slabel">Game-end Popup Duration</h3>
+      <div class="sslider-wrap">
+        <input type="range" min="500" max="4000" step="250" value="${popup}" id="popupSlider" style="width:100%">
+        <div class="sslider-labels">
+          <span>0.5s</span><span id="popupVal">${(popup/1000).toFixed(1)}s</span><span>4s</span>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('depthSlider').oninput = function() {
+    document.getElementById('depthVal').textContent = 'depth ' + this.value;
+    applyAndSave('analyseDepth', parseInt(this.value));
+  };
+  document.getElementById('popupSlider').oninput = function() {
+    document.getElementById('popupVal').textContent = (this.value/1000).toFixed(1) + 's';
+    applyAndSave('popupDuration', parseInt(this.value));
+  };
+}
+
+function resetToDefaults() {
+  if (!confirm('Reset all customisations to repo defaults?')) return;
+  clearLocalSettings();
+  _localOverrides = {};
+  // Reload settings from file and rebuild
+  loadSettings().then(() => {
+    buildBoard();
+    populatePgnSelector(0);
+    if (positions[moveIndex]) renderBoard(positions[moveIndex]);
+    closeSettings();
+    loadPgn(0);
+  });
+}
+
 // ═══════════════════════════════════════════════════════
 //  BUTTON WIRING
 // ═══════════════════════════════════════════════════════
-document.getElementById('btnAnalyse').onclick = toggleAnalyse;
+document.getElementById('btnAnalyse').onclick  = toggleAnalyse;
+document.getElementById('btnSettings').onclick = openSettings;
+document.getElementById('modalClose').onclick  = closeSettings;
+document.getElementById('settingsModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('settingsModal')) closeSettings();
+});
 document.getElementById('btnStart').onclick = () => goToMove(0);
 document.getElementById('btnPrev').onclick  = () => goToMove(moveIndex-1);
 document.getElementById('btnNext').onclick  = () => goToMove(moveIndex+1);

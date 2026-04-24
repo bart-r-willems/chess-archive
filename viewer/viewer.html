@@ -12,6 +12,7 @@
   <h1>♟ Chess Archive</h1>
   <span>PGN Viewer</span>
   <span id="buildBadge" style="margin-left:auto;font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;align-self:center;"></span>
+  <button id="btnSettings" style="margin-left:16px;background:none;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem;align-self:center;" title="Customise">⚙ Settings</button>
 </header>
 
 <div class="main">
@@ -78,6 +79,18 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.1A"></script>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="smodal-backdrop">
+  <div class="smodal">
+    <div class="smodal-header">
+      <h2>⚙ Settings</h2>
+      <button id="modalClose" class="smodal-close">✕</button>
+    </div>
+    <div id="settingsBody" class="smodal-body"></div>
+  </div>
+</div>
+
+<script src="chess.js?v=0.2"></script>
 </body>
 </html>

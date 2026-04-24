@@ -1,12 +1,15 @@
 {
   "pieces":        "merida",
   "squares":       "green",
+  "pieceSets":     ["merida"],
+  "squareSets":    ["green"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
     { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
   ],
   "piecesRoot":    "./pieces/",
   "squaresRoot":   "./squares/",
-  "popupDuration":  1500,
-  "analyseDepth":   18
+  "popupDuration": 1500,
+  "analyseDepth":  18,
+  "boardSize":     512
 }

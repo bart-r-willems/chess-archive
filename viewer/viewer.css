@@ -441,3 +441,241 @@
     opacity: 1;
     transform: scale(1);
   }
+
+/* ══════════════════════════════════════════
+   SETTINGS MODAL
+══════════════════════════════════════════ */
+.smodal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.smodal-backdrop.open {
+  display: flex;
+}
+
+.smodal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: min(680px, 95vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.smodal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.smodal-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  color: var(--gold);
+}
+
+.smodal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.smodal-close:hover { color: var(--text); }
+
+.smodal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 20px 20px;
+}
+
+.smodal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Tab bar */
+.stab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.stab {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: 'Lato', sans-serif;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.stab:hover { color: var(--text); }
+
+.stab.stab-active {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  background: rgba(201,168,76,0.06);
+}
+
+/* Section rows */
+.srow {
+  margin-bottom: 22px;
+}
+
+.slabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+}
+
+/* Thumbnail grid (squares / pieces) */
+.sthumb-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sthumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 0.15s;
+}
+
+.sthumb:hover { border-color: var(--gold-dim); }
+.sthumb.sthumb-active { border-color: var(--gold); }
+
+.sthumb-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 64px;
+  height: 64px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sthumb-sq {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.sthumb-piece-wrap {
+  display: flex;
+  gap: 4px;
+  width: 80px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+}
+
+.sthumb-piece {
+  width: 36px;
+  height: 36px;
+}
+
+.sthumb-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: 'Source Code Pro', monospace;
+}
+
+/* Sliders */
+.sslider-wrap {
+  padding: 0 4px;
+}
+
+.sslider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 4px;
+  font-family: 'Source Code Pro', monospace;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
+}
+
+/* PGN file list */
+.pgn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pgn-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.pgn-label-in, .pgn-file-in {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.pgn-label-in:focus, .pgn-file-in:focus { border-color: var(--gold-dim); }
+
+.pgn-btn {
+  padding: 5px 8px;
+  font-size: 0.75rem;
+}
