@@ -1,7 +1,7 @@
 {
   "pieces":        "merida",
   "squares":       "green",
-  "pieceSets":     ["merida", "leipzig"],
+  "pieceSets":     ["merida", "leipzig", "maestro", "cardinal", "mpchess"],
   "squareSets":    ["green", "brown", "black_white"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
