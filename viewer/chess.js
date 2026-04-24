@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.2';
+const BUILD = 'v0.2.1';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -30,7 +30,7 @@ async function loadSettings() {
   // Layer 2: settings.json (repo defaults)
   // Layer 3: localStorage (user overrides)
   try {
-    const r = await fetch('./settings.json?nocache=3');
+    const r = await fetch('./settings.json?v=0.2.1');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     SETTINGS = { ...DEFAULTS, ...data };

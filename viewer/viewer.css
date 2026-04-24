@@ -602,6 +602,8 @@
   height: 64px;
   align-items: center;
   justify-content: center;
+  background: #808080;
+  border-radius: 4px;
 }
 
 .sthumb-piece {
