@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess Archive Viewer</title>
-<link rel="stylesheet" href="viewer.css?v=0.2.1">
+<link rel="stylesheet" href="viewer.css?v=0.3">
 </head>
 <body>
 
@@ -16,18 +16,32 @@
 </header>
 
 <div class="main">
-  <!-- Left column -->
-  <div class="left-col">
-    <div class="game-select-wrap">
+  <!-- Game list column -->
+  <div class="game-list-col" id="gameListCol" style="display:none">
+    <div class="game-select-wrap" style="margin-bottom:8px">
       <label>Select File</label>
       <select id="pgnSelect"><option>Loading…</option></select>
     </div>
-
-    <div class="game-select-wrap">
-      <label>Select Game</label>
-      <select id="gameSelect"><option>Loading PGN…</option></select>
+    <div class="game-list-wrap">
+      <table class="game-table" id="gameTable">
+        <thead>
+          <tr>
+            <th class="gt-col-num"  data-col="num"    title="Sort by game number">#</th>
+            <th class="gt-col-name" data-col="white"  title="Sort by White">White</th>
+            <th class="gt-col-name" data-col="black"  title="Sort by Black">Black</th>
+            <th class="gt-col-date" data-col="date"   title="Sort by Date">Date</th>
+            <th class="gt-col-event"data-col="event"  title="Sort by Event">Event</th>
+            <th class="gt-col-res"  data-col="result" title="Sort by Result">Res</th>
+            <th class="gt-col-eco"  data-col="eco"    title="Sort by ECO">ECO</th>
+          </tr>
+        </thead>
+        <tbody id="gameTableBody"></tbody>
+      </table>
     </div>
+  </div>
 
+  <!-- Centre column: board + controls -->
+  <div class="left-col">
     <div id="loadMsg">Fetching game file…</div>
 
     <div class="board-area" id="boardWrap" style="display:none">
@@ -91,6 +105,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.2.1"></script>
+<script src="chess.js?v=0.3"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.2.1';
+const BUILD = 'v0.3';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -30,7 +30,7 @@ async function loadSettings() {
   // Layer 2: settings.json (repo defaults)
   // Layer 3: localStorage (user overrides)
   try {
-    const r = await fetch('./settings.json?v=0.2.1b');
+    const r = await fetch('./settings.json?v=0.2.1');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     SETTINGS = { ...DEFAULTS, ...data };
@@ -477,6 +477,12 @@ let positions = [];       // positions[i] = Chess state after i moves
 let moveIndex = 0;        // 0 = starting position, N = after N moves
 let lastFrom = null, lastTo = null;
 
+// Game list sort state (not persisted)
+let sortCol = 'num';      // current sort column
+let sortDir = 1;          // 1 = asc, -1 = desc
+let sortedIndices = [];   // allGames indices in current sort order
+let currentGameIdx = 0;   // index into allGames of the loaded game
+
 
 // ═══════════════════════════════════════════════════════
 //  STOCKFISH ENGINE
@@ -876,6 +882,9 @@ function applyBoardSize() {
   // PV line max-width
   const pv = document.getElementById('pvLine');
   if (pv) pv.style.maxWidth = (sz + 50) + 'px';
+  // Game list height matches board
+  const glw = document.querySelector('.game-list-wrap');
+  if (glw) glw.style.maxHeight = sz + 'px';
 }
 
 function buildBoard() {
@@ -988,6 +997,8 @@ function loadGame(idx) {
   const game = allGames[idx];
   if (!game) return;
   currentGame = game;
+  currentGameIdx = idx;
+  highlightGameRow(idx);
 
   // Build all positions
   const { states, froms, tos } = buildPositions(game.moves);
@@ -1149,7 +1160,7 @@ function updateInfo() {
   }
 
   // URL row — always last
-  const gameNumber = parseInt(document.getElementById('gameSelect').value) + 1;
+  const gameNumber = currentGameIdx + 1;
   const pgnIdx     = parseInt(document.getElementById('pgnSelect').value) || 0;
   const url = `${location.origin}${location.pathname}?pgn=${pgnIdx}&game=${gameNumber}`;
   const urlDiv = document.createElement('div');
@@ -1219,8 +1230,9 @@ async function loadPgn(fileIdx) {
       ? Math.min(Math.max(parseInt(gameParam) - 1, 0), allGames.length - 1)
       : 0;
 
+    currentGameIdx = gameIdx;
+    populateGameList();
     loadGame(gameIdx);
-    document.getElementById('gameSelect').value = gameIdx;
 
   } catch(err) {
     loadMsg.innerHTML = `<strong style="color:#c44">Could not load PGN.</strong><br>
@@ -1229,22 +1241,121 @@ async function loadPgn(fileIdx) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  GAME SELECTOR
+//  GAME LIST
 // ═══════════════════════════════════════════════════════
-function populateSelector() {
-  const sel = document.getElementById('gameSelect');
-  sel.innerHTML='';
-  allGames.forEach((g,i) => {
-    const opt = document.createElement('option');
-    const w = g.tags.White||'?';
-    const b = g.tags.Black||'?';
-    const d = (g.tags.Date||'').replace(/\.\?\?/,'').replace(/\?/g,'');
-    const r = g.tags.Result||'';
-    opt.value=i;
-    opt.textContent=`${i+1}. ${w} vs ${b}${d?' ('+d+')':''}  ${r}`;
-    sel.appendChild(opt);
+function tagVal(game, key) {
+  const v = game.tags[key] || '';
+  return v.replace(/\.\?\?/g,'').replace(/\?/g,'').trim();
+}
+
+function sortKey(game, col, origIdx) {
+  switch(col) {
+    case 'num':    return origIdx;
+    case 'white':  return (game.tags.White  || '').toLowerCase();
+    case 'black':  return (game.tags.Black  || '').toLowerCase();
+    case 'date':   return (game.tags.Date   || '').replace(/\?/g,'0');
+    case 'event':  return (game.tags.Event  || '').toLowerCase();
+    case 'result': return (game.tags.Result || '');
+    case 'eco':    return (game.tags.ECO    || '');
+    default:       return origIdx;
+  }
+}
+
+function populateSelector() { populateGameList(); } // keep compatibility
+
+function populateGameList() {
+  // Build sorted index array
+  sortedIndices = allGames.map((_, i) => i);
+  sortedIndices.sort((a, b) => {
+    const ka = sortKey(allGames[a], sortCol, a);
+    const kb = sortKey(allGames[b], sortCol, b);
+    if (ka < kb) return -sortDir;
+    if (ka > kb) return  sortDir;
+    return 0;
   });
-  sel.onchange = () => loadGame(parseInt(sel.value));
+
+  const tbody = document.getElementById('gameTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  sortedIndices.forEach((origIdx, sortPos) => {
+    const g = allGames[origIdx];
+    const tr = document.createElement('tr');
+    tr.dataset.gameIdx = origIdx;
+    if (origIdx === currentGameIdx) tr.classList.add('gt-active');
+
+    const date = tagVal(g, 'Date');
+    const year = date.slice(0, 4); // just show year to save space
+
+    tr.innerHTML = `
+      <td class="gt-col-num">${origIdx + 1}</td>
+      <td class="gt-col-name" title="${g.tags.White||''}">${truncate(g.tags.White||'?', 16)}</td>
+      <td class="gt-col-name" title="${g.tags.Black||''}">${truncate(g.tags.Black||'?', 16)}</td>
+      <td class="gt-col-date">${year}</td>
+      <td class="gt-col-event" title="${g.tags.Event||''}">${truncate(g.tags.Event||'', 18)}</td>
+      <td class="gt-col-res">${resultSymbol(g.tags.Result)}</td>
+      <td class="gt-col-eco">${g.tags.ECO||''}</td>`;
+
+    tr.onclick = () => {
+      currentGameIdx = origIdx;
+      loadGame(origIdx);
+      highlightGameRow(origIdx);
+    };
+    tbody.appendChild(tr);
+  });
+
+  // Update sort indicators on headers
+  document.querySelectorAll('.game-table th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.remove('gt-sort-asc','gt-sort-desc');
+    if (col === sortCol) th.classList.add(sortDir === 1 ? 'gt-sort-asc' : 'gt-sort-desc');
+  });
+
+  // Show the game list column
+  document.getElementById('gameListCol').style.display = '';
+
+  // Scroll active row into view
+  scrollActiveRowIntoView();
+}
+
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max) + '…' : str;
+}
+
+function resultSymbol(r) {
+  if (r === '1-0')     return '<span style="color:#e0c060">1-0</span>';
+  if (r === '0-1')     return '<span style="color:#8fc08f">0-1</span>';
+  if (r === '1/2-1/2') return '<span style="color:var(--muted)">½-½</span>';
+  return r || '';
+}
+
+function highlightGameRow(idx) {
+  document.querySelectorAll('#gameTableBody tr').forEach(tr => {
+    tr.classList.toggle('gt-active', parseInt(tr.dataset.gameIdx) === idx);
+  });
+  scrollActiveRowIntoView();
+}
+
+function scrollActiveRowIntoView() {
+  const active = document.querySelector('#gameTableBody tr.gt-active');
+  if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function initGameListSort() {
+  document.querySelectorAll('.game-table th[data-col]').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        if (sortDir === 1)  sortDir = -1;
+        else { sortCol = 'num'; sortDir = 1; } // third click resets
+      } else {
+        sortCol = col;
+        sortDir = 1;
+      }
+      populateGameList();
+      scrollActiveRowIntoView();
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1264,6 +1375,7 @@ async function init() {
     : 0;
 
   populatePgnSelector(fileIdx);
+  initGameListSort();
   await loadPgn(fileIdx);
 }
 
@@ -1437,7 +1549,7 @@ function buildPgnTab(panel) {
         <button class="btn pgn-btn" title="Remove" style="color:#c44">✕</button>`;
 
       const [labelIn, fileIn, upBtn, downBtn, delBtn] = row.querySelectorAll('input,button');
-      labelIn.oninput = () => { SETTINGS.pgnFiles[i].label = labelIn.value; applyAndSave('pgnFiles', SETTINGS.pgnFiles); populatePgnSelector(parseInt(document.getElementById('pgnSelect').value)); };
+      labelIn.oninput = () => { SETTINGS.pgnFiles[i].label = labelIn.value; applyAndSave('pgnFiles', SETTINGS.pgnFiles); populatePgnSelector(parseInt(document.getElementById('pgnSelect').value) || 0); };
       fileIn.oninput  = () => { SETTINGS.pgnFiles[i].file  = fileIn.value;  applyAndSave('pgnFiles', SETTINGS.pgnFiles); };
       upBtn.onclick   = () => { const a=SETTINGS.pgnFiles; [a[i-1],a[i]]=[a[i],a[i-1]]; applyAndSave('pgnFiles',a); renderPgnList(); populatePgnSelector(0); };
       downBtn.onclick = () => { const a=SETTINGS.pgnFiles; [a[i],a[i+1]]=[a[i+1],a[i]]; applyAndSave('pgnFiles',a); renderPgnList(); populatePgnSelector(0); };
