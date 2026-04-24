@@ -30,7 +30,7 @@ async function loadSettings() {
   // Layer 2: settings.json (repo defaults)
   // Layer 3: localStorage (user overrides)
   try {
-    const r = await fetch('./settings.json');
+    const r = await fetch('./settings.json?nocache=3');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     SETTINGS = { ...DEFAULTS, ...data };
