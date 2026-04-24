@@ -2,7 +2,7 @@
   "pieces":        "merida",
   "squares":       "green",
   "pieceSets":     ["merida", "leipzig", "maestro", "cardinal", "mpchess"],
-  "squareSets":    ["green", "brown", "black_white"],
+  "squareSets":    ["green", "brown", "black_white", "blue", "purple", "wood"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
     { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
