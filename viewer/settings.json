@@ -1,8 +1,8 @@
 {
   "pieces":        "merida",
   "squares":       "green",
-  "pieceSets":     ["merida"],
-  "squareSets":    ["green"],
+  "pieceSets":     ["merida", "leipzig"],
+  "squareSets":    ["green", "brown", "black_white"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
     { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
