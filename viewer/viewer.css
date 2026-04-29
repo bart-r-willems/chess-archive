@@ -131,10 +131,10 @@
   /* Column widths */
   .gt-col-num   { width: 34px;  text-align: right; padding-right: 8px; }
   .gt-col-name  { width: 110px; }
-  .gt-col-date  { width: 44px;  }
+  .gt-col-date  { width: 62px;  }
   .gt-col-event { width: 110px; }
-  .gt-col-res   { width: 36px;  text-align: center; }
-  .gt-col-eco   { width: 36px;  }
+  .gt-col-res   { width: 56px;  text-align: center; }
+  .gt-col-eco   { width: 54px;  }
 
   /* ── Centre column: board + controls ── */
   .left-col {
