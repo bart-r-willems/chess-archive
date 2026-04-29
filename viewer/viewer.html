@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess Archive Viewer</title>
-<link rel="stylesheet" href="viewer.css?v=0.3">
+<link rel="stylesheet" href="viewer.css?v=0.3.1">
 </head>
 <body>
 
@@ -26,18 +26,25 @@
       <table class="game-table" id="gameTable">
         <thead>
           <tr>
-            <th class="gt-col-num"  data-col="num"    title="Sort by game number">#</th>
-            <th class="gt-col-name" data-col="white"  title="Sort by White">White</th>
-            <th class="gt-col-name" data-col="black"  title="Sort by Black">Black</th>
-            <th class="gt-col-date" data-col="date"   title="Sort by Date">Date</th>
-            <th class="gt-col-event"data-col="event"  title="Sort by Event">Event</th>
-            <th class="gt-col-res"  data-col="result" title="Sort by Result">Res</th>
-            <th class="gt-col-eco"  data-col="eco"    title="Sort by ECO">ECO</th>
+            <th class="gt-col-num"  data-col="num"   >#</th>
+            <th class="gt-col-name" data-col="white" ><span class="gt-th-label">White</span><button class="gt-funnel" data-filter-col="white"  title="Filter White">⊿</button></th>
+            <th class="gt-col-name" data-col="black" ><span class="gt-th-label">Black</span><button class="gt-funnel" data-filter-col="black"  title="Filter Black">⊿</button></th>
+            <th class="gt-col-date" data-col="date"  ><span class="gt-th-label">Date</span><button class="gt-funnel" data-filter-col="date"   title="Filter Date">⊿</button></th>
+            <th class="gt-col-event"data-col="event" ><span class="gt-th-label">Event</span><button class="gt-funnel" data-filter-col="event"  title="Filter Event">⊿</button></th>
+            <th class="gt-col-res"  data-col="result"><span class="gt-th-label">Res</span><button class="gt-funnel" data-filter-col="result" title="Filter Result">⊿</button></th>
+            <th class="gt-col-eco"  data-col="eco"   ><span class="gt-th-label">ECO</span><button class="gt-funnel" data-filter-col="eco"    title="Filter ECO">⊿</button></th>
           </tr>
         </thead>
         <tbody id="gameTableBody"></tbody>
       </table>
     </div>
+    <!-- Active filters badge row -->
+    <div id="filterStatus" class="filter-status" style="display:none"></div>
+  </div>
+
+  <!-- Filter popover (shared, moved around the DOM) -->
+  <div id="filterPopover" class="filter-popover" style="display:none">
+    <div id="filterPopoverInner"></div>
   </div>
 
   <!-- Centre column: board + controls -->
@@ -105,6 +112,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.3"></script>
+<script src="chess.js?v=0.3.1"></script>
 </body>
 </html>

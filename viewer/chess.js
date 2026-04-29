@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.3';
+const BUILD = 'v0.3.1';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -482,6 +482,10 @@ let sortCol = 'num';      // current sort column
 let sortDir = 1;          // 1 = asc, -1 = desc
 let sortedIndices = [];   // allGames indices in current sort order
 let currentGameIdx = 0;   // index into allGames of the loaded game
+
+// Game list filter state (not persisted)
+const activeFilters = {};  // { col: patternString }
+const RESULT_OPTIONS = ['', '1-0', '0-1', '1/2-1/2', '*'];
 
 
 // ═══════════════════════════════════════════════════════
@@ -1240,6 +1244,185 @@ async function loadPgn(fileIdx) {
   }
 }
 
+
+// ═══════════════════════════════════════════════════════
+//  FILTER ENGINE
+// ═══════════════════════════════════════════════════════
+function filterPatternToRegex(pattern) {
+  // Implicit *contains* if no wildcard; case-insensitive
+  if (!pattern.includes('*')) pattern = '*' + pattern + '*';
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return new RegExp('^' + escaped + '$', 'i');
+}
+
+function gameMatchesFilters(game) {
+  for (const [col, pattern] of Object.entries(activeFilters)) {
+    if (!pattern) continue;
+    let value = '';
+    switch(col) {
+      case 'white':  value = game.tags.White  || ''; break;
+      case 'black':  value = game.tags.Black  || ''; break;
+      case 'date':   value = (game.tags.Date  || '').replace(/\?/g,''); break;
+      case 'event':  value = game.tags.Event  || ''; break;
+      case 'result': value = game.tags.Result || ''; break;
+      case 'eco':    value = game.tags.ECO    || ''; break;
+    }
+    if (!filterPatternToRegex(pattern).test(value)) return false;
+  }
+  return true;
+}
+
+function openFilterPopover(col, btnEl) {
+  const popover = document.getElementById('filterPopover');
+  const inner   = document.getElementById('filterPopoverInner');
+
+  inner.innerHTML = '';
+
+  const isResult = col === 'result';
+
+  if (isResult) {
+    // Pick from list
+    const label = document.createElement('div');
+    label.className = 'fp-label';
+    label.textContent = 'Filter Result';
+    inner.appendChild(label);
+
+    RESULT_OPTIONS.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'fp-result-opt' + ((activeFilters[col] || '') === opt ? ' fp-result-active' : '');
+      btn.textContent = opt === '' ? '— any —' : opt === '1/2-1/2' ? '½-½' : opt;
+      btn.onclick = () => {
+        if (opt === '') delete activeFilters[col];
+        else activeFilters[col] = opt;
+        popover.style.display = 'none';
+        updateFunnelStates();
+        populateGameList();
+        updateFilterStatus();
+      };
+      inner.appendChild(btn);
+    });
+
+  } else {
+    // Text input with wildcard
+    const label = document.createElement('div');
+    label.className = 'fp-label';
+    label.textContent = 'Filter ' + col.charAt(0).toUpperCase() + col.slice(1);
+    inner.appendChild(label);
+
+    const input = document.createElement('input');
+    input.className = 'fp-input';
+    input.type = 'text';
+    input.placeholder = 'e.g. Kasparov or *parov';
+    input.value = activeFilters[col] || '';
+    inner.appendChild(input);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'fp-btn-row';
+
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn';
+    okBtn.textContent = 'Apply';
+    okBtn.onclick = () => {
+      const val = input.value.trim();
+      if (val) activeFilters[col] = val;
+      else delete activeFilters[col];
+      popover.style.display = 'none';
+      updateFunnelStates();
+      populateGameList();
+      updateFilterStatus();
+    };
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn';
+    clearBtn.style.color = 'var(--muted)';
+    clearBtn.textContent = 'Clear';
+    clearBtn.onclick = () => {
+      delete activeFilters[col];
+      popover.style.display = 'none';
+      updateFunnelStates();
+      populateGameList();
+      updateFilterStatus();
+    };
+
+    btnRow.appendChild(okBtn);
+    btnRow.appendChild(clearBtn);
+    inner.appendChild(btnRow);
+
+    // Apply on Enter
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') okBtn.click();
+      if (e.key === 'Escape') { popover.style.display = 'none'; }
+    });
+    setTimeout(() => input.focus(), 50);
+  }
+
+  // Position popover below the button
+  const rect = btnEl.getBoundingClientRect();
+  popover.style.display = 'block';
+  popover.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  popover.style.left = (rect.left  + window.scrollX) + 'px';
+
+  // Dismiss on outside click
+  setTimeout(() => {
+    const dismiss = e => {
+      if (!popover.contains(e.target) && e.target !== btnEl) {
+        popover.style.display = 'none';
+        document.removeEventListener('mousedown', dismiss);
+      }
+    };
+    document.addEventListener('mousedown', dismiss);
+  }, 0);
+}
+
+function updateFunnelStates() {
+  document.querySelectorAll('.gt-funnel').forEach(btn => {
+    const col = btn.dataset.filterCol;
+    const active = !!activeFilters[col];
+    btn.classList.toggle('gt-funnel-active', active);
+    btn.title = active ? `Filter: ${activeFilters[col]} (click to change)` : `Filter ${col}`;
+  });
+}
+
+function updateFilterStatus() {
+  const bar = document.getElementById('filterStatus');
+  const entries = Object.entries(activeFilters).filter(([,v]) => v);
+  if (entries.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  bar.innerHTML = '<span style="color:var(--muted);font-size:0.7rem;margin-right:6px">Filters:</span>'
+    + entries.map(([col, val]) =>
+        `<span class="filter-chip">${col}: <em>${val}</em>
+          <button onclick="clearFilter('${col}')" title="Remove filter">✕</button>
+        </span>`
+      ).join('')
+    + `<button class="btn" style="margin-left:auto;font-size:0.7rem;padding:2px 8px;color:var(--muted)" onclick="clearAllFilters()">Clear all</button>`;
+}
+
+function clearFilter(col) {
+  delete activeFilters[col];
+  updateFunnelStates();
+  populateGameList();
+  updateFilterStatus();
+}
+
+function clearAllFilters() {
+  Object.keys(activeFilters).forEach(k => delete activeFilters[k]);
+  updateFunnelStates();
+  populateGameList();
+  updateFilterStatus();
+}
+
+function initFilterButtons() {
+  document.querySelectorAll('.gt-funnel').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation(); // don't trigger column sort
+      openFilterPopover(btn.dataset.filterCol, btn);
+    });
+  });
+}
+
 // ═══════════════════════════════════════════════════════
 //  GAME LIST
 // ═══════════════════════════════════════════════════════
@@ -1264,8 +1447,8 @@ function sortKey(game, col, origIdx) {
 function populateSelector() { populateGameList(); } // keep compatibility
 
 function populateGameList() {
-  // Build sorted index array
-  sortedIndices = allGames.map((_, i) => i);
+  // Build sorted + filtered index array
+  sortedIndices = allGames.map((_, i) => i).filter(i => gameMatchesFilters(allGames[i]));
   sortedIndices.sort((a, b) => {
     const ka = sortKey(allGames[a], sortCol, a);
     const kb = sortKey(allGames[b], sortCol, b);
@@ -1376,6 +1559,7 @@ async function init() {
 
   populatePgnSelector(fileIdx);
   initGameListSort();
+  initFilterButtons();
   await loadPgn(fileIdx);
 }
 
