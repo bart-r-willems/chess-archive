@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.3.2';
+const BUILD = 'v0.3.3';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -1213,7 +1213,7 @@ async function loadPgn(fileIdx) {
   document.getElementById('kbHint').style.display    = 'none';
 
   try {
-    const resp = await fetch(entry.file);
+    const resp = await fetch(entry.file + '?t=' + Date.now());
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const buf  = await resp.arrayBuffer();
     const text = new TextDecoder('windows-1252').decode(buf);
