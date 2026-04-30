@@ -871,3 +871,14 @@ input[type=range]::-webkit-slider-thumb {
 }
 
 .filter-chip button:hover { color: var(--gold); }
+
+/* Copy link button */
+.copy-link-btn {
+  width: 100%;
+  text-align: center;
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  font-size: 0.8rem;
+  padding: 7px 12px;
+}
+.copy-link-btn:hover { border-color: var(--gold); }

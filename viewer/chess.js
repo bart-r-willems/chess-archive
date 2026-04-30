@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.3.3';
+const BUILD = 'v0.4';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -20,7 +20,8 @@ const DEFAULTS = {
   squaresRoot:   './squares/',
   popupDuration: 1500,
   analyseDepth:  18,
-  boardSize:     512,   // px — board width/height
+  boardSize:      512,  // px — board width/height
+  animationSpeed: 0.1,  // seconds per square of piece travel
 };
 
 let SETTINGS = { ...DEFAULTS };
@@ -487,6 +488,10 @@ let currentGameIdx = 0;   // index into allGames of the loaded game
 const activeFilters = {};  // { col: patternString }
 const RESULT_OPTIONS = ['', '1-0', '0-1', '1/2-1/2', '*'];
 
+// Piece animation
+let animationActive = false;   // true while a piece is sliding
+let animCancel = false;        // set to true to interrupt current animation
+
 
 // ═══════════════════════════════════════════════════════
 //  STOCKFISH ENGINE
@@ -935,15 +940,35 @@ function buildBoard() {
   applyBoardSize();
 }
 
-function renderBoard(chess) {
+function renderBoard(chess, animate=false, fromSq=null, toSq=null) {
+  // Cancel any in-flight animation
+  animCancel = true;
+  animationActive = false;
+
+  const sz   = SETTINGS.boardSize || 512;
+  const sqSz = sz / 8;
+  const speed = SETTINGS.animationSpeed ?? 0.1;
+
+  // Snapshot positions of pieces currently rendered (for animation start points)
+  const prevPositions = {};
+  if (animate && speed > 0 && fromSq && toSq) {
+    document.querySelectorAll('.sq').forEach(el => {
+      const img = el.querySelector('img');
+      if (img) {
+        const rect = el.getBoundingClientRect();
+        prevPositions[el.id.replace('sq-','')] = { x: rect.left, y: rect.top };
+      }
+    });
+  }
+
+  // Render the new position (instant)
   for (let i=0;i<64;i++) {
     const sqName = idxToSq(i);
     const el = document.getElementById('sq-'+sqName);
     if (!el) continue;
 
-    // Highlight overlay — semi-transparent color on top of bitmap
     const isHi = (sqName===lastFrom||sqName===lastTo);
-    const isLight = (file=>rank=>(file+rank)%2!==0)(i%8)(Math.floor(i/8));
+    const isLight = (i%8 + Math.floor(i/8))%2!==0;
     el.className = 'sq ' + (isLight ? 'light' : 'dark');
 
     const highlightDiv = isHi
@@ -956,6 +981,47 @@ function renderBoard(chess) {
       : '';
 
     el.innerHTML = highlightDiv + pieceImg;
+  }
+
+  // Animate the moving piece
+  if (animate && speed > 0 && fromSq && toSq) {
+    const toEl  = document.getElementById('sq-' + toSq);
+    const img   = toEl ? toEl.querySelector('img') : null;
+    const prev  = prevPositions[fromSq];
+
+    if (img && prev) {
+      const toRect = toEl.getBoundingClientRect();
+      const dx = prev.x - toRect.left;
+      const dy = prev.y - toRect.top;
+
+      // Distance in squares for duration calc
+      const fileDiff = Math.abs(FILES.indexOf(fromSq[0]) - FILES.indexOf(toSq[0]));
+      const rankDiff = Math.abs(parseInt(fromSq[1]) - parseInt(toSq[1]));
+      const dist     = Math.sqrt(fileDiff*fileDiff + rankDiff*rankDiff);
+      const duration = Math.max(dist * speed, speed); // minimum 1 square
+
+      animCancel = false;
+      animationActive = true;
+
+      // Start offset, then transition to 0
+      img.style.transition = 'none';
+      img.style.transform  = `translate(${dx}px, ${dy}px)`;
+      img.style.position   = 'relative';
+      img.style.zIndex     = '10';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (animCancel) { img.style.transform=''; img.style.zIndex=''; return; }
+          img.style.transition = `transform ${duration.toFixed(2)}s ease`;
+          img.style.transform  = 'translate(0,0)';
+          setTimeout(() => {
+            animationActive = false;
+            img.style.transition = '';
+            img.style.zIndex     = '';
+          }, duration * 1000 + 50);
+        });
+      });
+    }
   }
 }
 
@@ -1039,10 +1105,13 @@ function showResultPopup(text) {
 function goToMove(idx, silent=false) {
   if (idx<0||idx>=positions.length) return;
   const wasAtEnd = moveIndex === positions.length-1;
+  const prevIdx  = moveIndex;
   moveIndex = idx;
   lastFrom = window._froms[idx]||null;
   lastTo   = window._tos[idx]||null;
-  renderBoard(positions[moveIndex]);
+  // Animate only when stepping one move forward or backward
+  const stepping = Math.abs(idx - prevIdx) === 1;
+  renderBoard(positions[moveIndex], stepping, lastFrom, lastTo);
   updateControls();
   highlightMoveInList(moveIndex);
   updateStatus();
@@ -1163,23 +1232,24 @@ function updateInfo() {
     rows.appendChild(div);
   }
 
-  // URL row — always last
+  // Single copy-link button
   const gameNumber = currentGameIdx + 1;
   const pgnIdx     = parseInt(document.getElementById('pgnSelect').value) || 0;
   const url = `${location.origin}${location.pathname}?pgn=${pgnIdx}&game=${gameNumber}`;
-  const urlDiv = document.createElement('div');
-  urlDiv.className = 'info-row';
-  urlDiv.style.marginTop = '8px';
-  urlDiv.style.borderTop = '1px solid var(--border)';
-  urlDiv.style.paddingTop = '8px';
-  urlDiv.innerHTML = `<span class="info-label">Link</span><span class="info-val"><a href="${url}" id="gameLink" style="color:var(--gold);text-decoration:none;font-size:0.83rem">Link to this game</a></span>`;
-  rows.appendChild(urlDiv);
-
-  // One-click copy button
-  const copyDiv = document.createElement('div');
-  copyDiv.className = 'info-row';
-  copyDiv.innerHTML = `<span></span><button onclick="navigator.clipboard.writeText('${url}').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy link',1500)})" style="background:var(--surface);border:1px solid var(--border);color:var(--gold);padding:3px 10px;border-radius:3px;cursor:pointer;font-size:0.75rem">Copy link</button>`;
-  rows.appendChild(copyDiv);
+  const linkDiv = document.createElement('div');
+  linkDiv.className = 'info-row';
+  linkDiv.style.cssText = 'margin-top:10px;border-top:1px solid var(--border);padding-top:10px';
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn copy-link-btn';
+  copyBtn.textContent = '⎘ Copy link to this game';
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(() => copyBtn.textContent = '⎘ Copy link to this game', 1800);
+    });
+  };
+  linkDiv.appendChild(copyBtn);
+  rows.appendChild(linkDiv);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1528,6 +1598,13 @@ function initGameListSort() {
   document.querySelectorAll('.game-table th[data-col]').forEach(th => {
     th.onclick = () => {
       const col = th.dataset.col;
+
+      // Remember visible position of selected row before re-sort
+      const tbody = document.getElementById('gameTableBody');
+      const rows  = Array.from(tbody.querySelectorAll('tr'));
+      const activeRow = rows.find(r => r.classList.contains('gt-active'));
+      const visiblePosBefore = activeRow ? rows.indexOf(activeRow) : 0;
+
       if (sortCol === col) {
         if (sortDir === 1)  sortDir = -1;
         else { sortCol = 'num'; sortDir = 1; } // third click resets
@@ -1536,7 +1613,21 @@ function initGameListSort() {
         sortDir = 1;
       }
       populateGameList();
-      scrollActiveRowIntoView();
+
+      // Select the game at the same visual position in the new sort order
+      const newRows = Array.from(tbody.querySelectorAll('tr'));
+      const targetRow = newRows[Math.min(visiblePosBefore, newRows.length - 1)];
+      if (targetRow) {
+        const newIdx = parseInt(targetRow.dataset.gameIdx);
+        if (!isNaN(newIdx) && newIdx !== currentGameIdx) {
+          currentGameIdx = newIdx;
+          loadGame(newIdx);
+        }
+        // Always highlight the row at that position
+        newRows.forEach(r => r.classList.remove('gt-active'));
+        targetRow.classList.add('gt-active');
+        targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     };
   });
 }
@@ -1761,6 +1852,8 @@ function buildPgnTab(panel) {
 function buildAnalysisTab(panel) {
   const depth = SETTINGS.analyseDepth  || 18;
   const popup = SETTINGS.popupDuration || 1500;
+  const anim  = SETTINGS.animationSpeed ?? 0.1;
+  const animLabel = anim === 0 ? 'Off' : anim.toFixed(2) + 's / sq';
 
   panel.innerHTML = `
     <div class="srow">
@@ -1780,6 +1873,15 @@ function buildAnalysisTab(panel) {
           <span>0.5s</span><span id="popupVal">${(popup/1000).toFixed(1)}s</span><span>4s</span>
         </div>
       </div>
+    </div>
+    <div class="srow">
+      <h3 class="slabel">Piece Animation Speed</h3>
+      <div class="sslider-wrap">
+        <input type="range" min="0" max="0.3" step="0.02" value="${anim}" id="animSlider" style="width:100%">
+        <div class="sslider-labels">
+          <span>Off</span><span id="animVal">${animLabel}</span><span>0.3s / sq</span>
+        </div>
+      </div>
     </div>`;
 
   document.getElementById('depthSlider').oninput = function() {
@@ -1789,6 +1891,11 @@ function buildAnalysisTab(panel) {
   document.getElementById('popupSlider').oninput = function() {
     document.getElementById('popupVal').textContent = (this.value/1000).toFixed(1) + 's';
     applyAndSave('popupDuration', parseInt(this.value));
+  };
+  document.getElementById('animSlider').oninput = function() {
+    const v = parseFloat(this.value);
+    document.getElementById('animVal').textContent = v === 0 ? 'Off' : v.toFixed(2) + 's / sq';
+    applyAndSave('animationSpeed', v);
   };
 }
 

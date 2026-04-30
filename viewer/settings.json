@@ -1,8 +1,8 @@
 {
   "pieces":        "merida",
   "squares":       "green",
-  "pieceSets":     ["merida", "leipzig", "maestro", "cardinal", "mpchess"],
-  "squareSets":    ["green", "brown", "black_white", "blue", "purple", "wood"],
+  "pieceSets":     ["merida", "leipzig"],
+  "squareSets":    ["green", "brown", "black_white"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
     { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
@@ -10,6 +10,7 @@
   "piecesRoot":    "./pieces/",
   "squaresRoot":   "./squares/",
   "popupDuration": 1500,
-  "analyseDepth":  18,
-  "boardSize":     512
+  "analyseDepth":   18,
+  "boardSize":      512,
+  "animationSpeed": 0.1
 }
