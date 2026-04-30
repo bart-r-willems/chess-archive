@@ -131,10 +131,10 @@
   /* Column widths */
   .gt-col-num   { width: 34px;  text-align: right; padding-right: 8px; }
   .gt-col-name  { width: 110px; }
-  .gt-col-date  { width: 44px;  }
+  .gt-col-date  { width: 62px;  }
   .gt-col-event { width: 110px; }
-  .gt-col-res   { width: 36px;  text-align: center; }
-  .gt-col-eco   { width: 36px;  }
+  .gt-col-res   { width: 56px;  text-align: center; }
+  .gt-col-eco   { width: 54px;  }
 
   /* ── Centre column: board + controls ── */
   .left-col {
@@ -731,3 +731,143 @@ input[type=range]::-webkit-slider-thumb {
   padding: 5px 8px;
   font-size: 0.75rem;
 }
+
+/* ══════════════════════════════════════════
+   FILTER BUTTONS & POPOVER
+══════════════════════════════════════════ */
+
+/* Column header layout */
+.game-table th {
+  position: relative;
+}
+
+.gt-th-label {
+  margin-right: 2px;
+}
+
+/* Funnel button */
+.gt-funnel {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+  vertical-align: middle;
+}
+
+.gt-funnel:hover { opacity: 1; color: var(--text); }
+
+/* Active filter — gold and fully visible */
+.gt-funnel.gt-funnel-active {
+  opacity: 1;
+  color: var(--gold);
+}
+
+/* Filter popover */
+.filter-popover {
+  position: absolute;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  padding: 12px 14px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.fp-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.fp-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.85rem;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.fp-input:focus { border-color: var(--gold-dim); }
+
+.fp-btn-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Result option buttons */
+.fp-result-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: 'Lato', sans-serif;
+  margin-bottom: 3px;
+  transition: background 0.1s;
+}
+
+.fp-result-opt:hover { background: #252320; }
+.fp-result-opt.fp-result-active {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+  background: rgba(201,168,76,0.07);
+}
+
+/* Filter status bar */
+.filter-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px 2px;
+  min-height: 28px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid var(--gold-dim);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  color: var(--gold);
+  font-family: 'Source Code Pro', monospace;
+}
+
+.filter-chip em {
+  font-style: normal;
+  color: var(--text);
+}
+
+.filter-chip button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.filter-chip button:hover { color: var(--gold); }
