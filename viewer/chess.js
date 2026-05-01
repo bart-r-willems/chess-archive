@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.4';
+const BUILD = 'v0.4.1';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -941,35 +941,35 @@ function buildBoard() {
 }
 
 function renderBoard(chess, animate=false, fromSq=null, toSq=null) {
-  // Cancel any in-flight animation
+  // Cancel any in-flight animation overlay
   animCancel = true;
   animationActive = false;
+  const oldOverlay = document.getElementById('pieceAnimOverlay');
+  if (oldOverlay) oldOverlay.remove();
 
-  const sz   = SETTINGS.boardSize || 512;
-  const sqSz = sz / 8;
   const speed = SETTINGS.animationSpeed ?? 0.1;
 
-  // Snapshot positions of pieces currently rendered (for animation start points)
-  const prevPositions = {};
+  // Snapshot the from-square piece src and its screen position BEFORE redrawing
+  let animSrc  = null;
+  let fromRect = null;
   if (animate && speed > 0 && fromSq && toSq) {
-    document.querySelectorAll('.sq').forEach(el => {
-      const img = el.querySelector('img');
-      if (img) {
-        const rect = el.getBoundingClientRect();
-        prevPositions[el.id.replace('sq-','')] = { x: rect.left, y: rect.top };
-      }
-    });
+    const fromEl = document.getElementById('sq-' + fromSq);
+    const fromImg = fromEl ? fromEl.querySelector('img') : null;
+    if (fromImg) {
+      animSrc  = fromImg.src;
+      fromRect = fromEl.getBoundingClientRect();
+    }
   }
 
-  // Render the new position (instant)
-  for (let i=0;i<64;i++) {
+  // Render the new board position instantly
+  for (let i = 0; i < 64; i++) {
     const sqName = idxToSq(i);
-    const el = document.getElementById('sq-'+sqName);
+    const el = document.getElementById('sq-' + sqName);
     if (!el) continue;
 
-    const isHi = (sqName===lastFrom||sqName===lastTo);
-    const isLight = (i%8 + Math.floor(i/8))%2!==0;
-    el.className = 'sq ' + (isLight ? 'light' : 'dark');
+    const isHi    = (sqName === lastFrom || sqName === lastTo);
+    const isLight = (i % 8 + Math.floor(i / 8)) % 2 !== 0;
+    el.className  = 'sq ' + (isLight ? 'light' : 'dark');
 
     const highlightDiv = isHi
       ? `<div style="position:absolute;inset:0;background:${isLight ? 'rgba(205,210,50,0.5)' : 'rgba(170,162,58,0.6)'};pointer-events:none;"></div>`
@@ -983,45 +983,63 @@ function renderBoard(chess, animate=false, fromSq=null, toSq=null) {
     el.innerHTML = highlightDiv + pieceImg;
   }
 
-  // Animate the moving piece
-  if (animate && speed > 0 && fromSq && toSq) {
-    const toEl  = document.getElementById('sq-' + toSq);
-    const img   = toEl ? toEl.querySelector('img') : null;
-    const prev  = prevPositions[fromSq];
+  // Animate: float a clone of the piece over the board from fromRect to toRect
+  if (animate && speed > 0 && fromSq && toSq && animSrc && fromRect) {
+    const toEl   = document.getElementById('sq-' + toSq);
+    const toRect = toEl ? toEl.getBoundingClientRect() : null;
+    if (!toRect) return;
 
-    if (img && prev) {
-      const toRect = toEl.getBoundingClientRect();
-      const dx = prev.x - toRect.left;
-      const dy = prev.y - toRect.top;
+    // Hide the piece in the destination square during flight
+    const destImg = toEl.querySelector('img');
+    if (destImg) destImg.style.visibility = 'hidden';
 
-      // Distance in squares for duration calc
-      const fileDiff = Math.abs(FILES.indexOf(fromSq[0]) - FILES.indexOf(toSq[0]));
-      const rankDiff = Math.abs(parseInt(fromSq[1]) - parseInt(toSq[1]));
-      const dist     = Math.sqrt(fileDiff*fileDiff + rankDiff*rankDiff);
-      const duration = Math.max(dist * speed, speed); // minimum 1 square
+    // Calculate duration from distance
+    const fileDiff = Math.abs(FILES.indexOf(fromSq[0]) - FILES.indexOf(toSq[0]));
+    const rankDiff = Math.abs(parseInt(fromSq[1]) - parseInt(toSq[1]));
+    const dist     = Math.sqrt(fileDiff * fileDiff + rankDiff * rankDiff);
+    const duration = Math.max(dist * speed, speed);
 
-      animCancel = false;
-      animationActive = true;
+    // Create floating overlay img, positioned in page coordinates
+    const sz   = SETTINGS.boardSize || 512;
+    const sqSz = sz / 8;
+    const overlay = document.createElement('img');
+    overlay.id          = 'pieceAnimOverlay';
+    overlay.src         = animSrc;
+    overlay.draggable   = false;
+    overlay.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 999;
+      width: ${sqSz * 0.9}px;
+      height: ${sqSz * 0.9}px;
+      left: ${fromRect.left + sqSz * 0.05}px;
+      top:  ${fromRect.top  + sqSz * 0.05}px;
+      transition: none;
+    `;
+    document.body.appendChild(overlay);
 
-      // Start offset, then transition to 0
-      img.style.transition = 'none';
-      img.style.transform  = `translate(${dx}px, ${dy}px)`;
-      img.style.position   = 'relative';
-      img.style.zIndex     = '10';
+    animCancel = false;
+    animationActive = true;
 
+    // Two rAF frames to ensure the browser paints the start position first
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (animCancel) { img.style.transform=''; img.style.zIndex=''; return; }
-          img.style.transition = `transform ${duration.toFixed(2)}s ease`;
-          img.style.transform  = 'translate(0,0)';
-          setTimeout(() => {
-            animationActive = false;
-            img.style.transition = '';
-            img.style.zIndex     = '';
-          }, duration * 1000 + 50);
-        });
+        if (animCancel) {
+          overlay.remove();
+          if (destImg) destImg.style.visibility = '';
+          return;
+        }
+        overlay.style.transition = `left ${duration.toFixed(2)}s ease, top ${duration.toFixed(2)}s ease`;
+        overlay.style.left = `${toRect.left + sqSz * 0.05}px`;
+        overlay.style.top  = `${toRect.top  + sqSz * 0.05}px`;
+
+        setTimeout(() => {
+          overlay.remove();
+          animationActive = false;
+          if (destImg) destImg.style.visibility = '';
+        }, duration * 1000 + 50);
       });
-    }
+    });
   }
 }
 
