@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.4.1';
+const BUILD = 'v0.4.2';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -1147,14 +1147,16 @@ function goToMove(idx, silent=false) {
 }
 
 function updateControls() {
+  const total = positions.length - 1;
   document.getElementById('btnStart').disabled = moveIndex===0;
   document.getElementById('btnPrev').disabled  = moveIndex===0;
-  document.getElementById('btnNext').disabled  = moveIndex>=positions.length-1;
-  document.getElementById('btnEnd').disabled   = moveIndex>=positions.length-1;
-  const total = positions.length-1;
-  const mn = Math.ceil(moveIndex/2);
+  document.getElementById('btnNext').disabled  = moveIndex>=total;
+  document.getElementById('btnEnd').disabled   = moveIndex>=total;
+  const moveNum    = Math.ceil(moveIndex / 2);
+  const totalMoves = Math.ceil(total / 2);
+  const side = moveIndex % 2 === 1 ? 'White' : 'Black';
   document.getElementById('moveCtr').textContent =
-    moveIndex===0 ? 'Start' : `Move ${moveIndex} / ${total}`;
+    moveIndex===0 ? 'Start' : `Move ${moveNum} ${side} / ${totalMoves}`;
   updateStatus();
 }
 
