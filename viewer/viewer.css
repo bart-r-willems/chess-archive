@@ -1,6 +1,6 @@
 /* Chess Archive Viewer — viewer.css */
 
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Ubuntu:wght@300;400;700&family=Ubuntu+Mono:wght@400;700&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -23,7 +23,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Ubuntu', sans-serif;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -41,7 +41,7 @@
   }
 
   header h1 {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.6rem;
     color: var(--gold);
     letter-spacing: 0.05em;
@@ -85,7 +85,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.78rem;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Ubuntu', sans-serif;
     table-layout: fixed;
   }
 
@@ -199,7 +199,7 @@
   }
 
   .eval-score {
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     font-size: 0.65rem;
     color: var(--muted);
     text-align: center;
@@ -232,7 +232,7 @@
   }
 
   .coord {
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     font-size: 0.65rem;
     color: var(--muted);
     text-align: center;
@@ -305,7 +305,7 @@
   }
 
   .move-counter {
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     font-size: 0.85rem;
     color: var(--muted);
     white-space: nowrap;
@@ -340,7 +340,7 @@
   }
 
   .info-box h2 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     color: var(--gold);
     margin-bottom: 10px;
@@ -372,7 +372,7 @@
   }
 
   .move-list-box h2 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1rem;
     color: var(--gold);
     margin-bottom: 10px;
@@ -388,7 +388,7 @@
     flex-wrap: wrap;
     align-content: flex-start;
     gap: 2px;
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     font-size: 0.82rem;
     /* No fixed max-height — flex: 1 fills available space in .move-list-box,
        which is constrained by .right-col max-height above */
@@ -417,7 +417,7 @@
     padding: 2px 8px;
     border-radius: 3px;
     font-size: 0.78rem;
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     background: #2a2820;
     color: var(--gold);
     border: 1px solid var(--gold-dim);
@@ -441,7 +441,7 @@
 
   /* Stockfish PV line */
   .pv-line {
-    font-family: 'Source Code Pro', monospace;
+    font-family: 'Ubuntu Mono', monospace;
     font-size: 0.78rem;
     color: var(--muted);
     width: 100%;
@@ -473,7 +473,7 @@
   #resultPopup .popup-inner {
     background: rgba(0,0,0,0.82);
     color: #fff;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Inter', sans-serif;
     font-size: 2rem;
     font-weight: 700;
     padding: 18px 36px;
@@ -530,7 +530,7 @@
 }
 
 .smodal-header h2 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', sans-serif;
   font-size: 1.1rem;
   color: var(--gold);
 }
@@ -580,7 +580,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   transition: color 0.15s, border-color 0.15s;
 }
 
@@ -603,7 +603,7 @@
   letter-spacing: 0.12em;
   color: var(--muted);
   margin-bottom: 10px;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   font-weight: 700;
 }
 
@@ -664,7 +664,7 @@
 .sthumb-label {
   font-size: 0.72rem;
   color: var(--muted);
-  font-family: 'Source Code Pro', monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 /* Sliders */
@@ -678,7 +678,7 @@
   font-size: 0.7rem;
   color: var(--muted);
   margin-top: 4px;
-  font-family: 'Source Code Pro', monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 input[type=range] {
@@ -720,7 +720,7 @@ input[type=range]::-webkit-slider-thumb {
   color: var(--text);
   padding: 6px 10px;
   border-radius: 4px;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   font-size: 0.82rem;
   outline: none;
 }
@@ -794,7 +794,7 @@ input[type=range]::-webkit-slider-thumb {
   color: var(--text);
   padding: 6px 10px;
   border-radius: 4px;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   font-size: 0.85rem;
   outline: none;
   margin-bottom: 8px;
@@ -820,7 +820,7 @@ input[type=range]::-webkit-slider-thumb {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Ubuntu', sans-serif;
   margin-bottom: 3px;
   transition: background 0.1s;
 }
@@ -852,7 +852,7 @@ input[type=range]::-webkit-slider-thumb {
   padding: 2px 6px;
   font-size: 0.72rem;
   color: var(--gold);
-  font-family: 'Source Code Pro', monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 .filter-chip em {
