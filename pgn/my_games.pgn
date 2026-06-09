@@ -3408,3 +3408,23 @@
 
 {[%evp 0,94,12,39,45,28,40,33,42,-35,34,0,39,12,9,3,-1,0,17,1,15,-50,55,-56,-32,-14,-35,-70,-74,-46,-140,-138,-98,-104,-86,-99,-95,-101,69,-95,10,-122,1,-116,-105,33,-100,-101,-102,-44,-51,-57,-54,-120,39,-157,-96,-142,-115,-131,-102,-48,-89,-164,-129,-189,-180,-204,-203,-241,-97,27,-158,-335,-140,-345,-264,-508,-368,-491,-488,-534,-378,-273,-407,-400,-267,-247,-192,-39,-184,-268,-168,-256,-228,-261,1]} 1. d4 f5 2. c4 e6 3. Nc3 Bb4 4. Nf3 Nf6 5. Bg5 Bxc3+ 6. bxc3 O-O 7. e3 b6 8. Be2 Bb7 9. O-O d6 10. d5 e5 11. Qc2 Qd7 12. Bxf6 Rxf6 13. h3 Na6 14. Ng5 Nc5 15. f4 e4 16. h4 h6 17. Nh3 g6 18. Nf2 Qg7 19. Nh3 Bc8 20. Qd1 Rf7 21. Qd4 Qf8 22. Kh2 Qe7 23. g3 Rh7 24. Rg1 Kf7 25. Rg2 Bd7 26. Rd1 g5 27. h5 g4 28. Nf2 Qf6 29. Rb1 Na4 30. Nd1 Be8 31. Rb4 Ke7 32. Qxf6+ Kxf6 33. Nf2 $2 Nxc3 34. Bd1 Nxa2 35. Rb3 a5 36. Rb2 Nb4 37. Bc2 Bxh5 38. Bxe4 Re8 39. Bb1 Rxe3 40. Nd1 Re8 41. Nc3 Rhe7 42. Nb5 Na6 43. Nd4 Re4 $2 44. Bxe4 Rxe4 45. Nb5 Be8 46. Nc3 Rxc4 47. Rgc2 Nc5 48. Ne2 Rxc2 49. Rxc2 Bb5 50. Kg2 Bxe2 51. Rxe2 0-1
 
+[Event "June Bugs 2026"]
+[Site "Ridgewood, NJ"]
+[Date "2026.06.08"]
+[Round "2"]
+[White "Willems, Bart"]
+[Black "Zonenberg, Dan"]
+[Result "1-0"]
+[Annotator "Willems,Bart"]
+[ECO "A03"]
+[WhiteElo "1650"]
+[BlackElo "1750"]
+[WhiteFideId "-1"]
+[BlackFideId "-1"]
+[PlyCount "69"]
+[EventDate "2026.06.09"]
+[EventRounds "5"]
+[EventCountry "USA"]
+
+1. f4 d5 2. e3 Nf6 3. Nf3 e6 4. b3 b6 5. Bb2 Bb7 6. Bb5+ c6 7. Be2 Nbd7 8. O-O Bd6 9. Ne5 Qe7 10. a4 h5 11. d3 Rh7 12. a5 bxa5 13. Rxa5 Bc7 14. Ra1 Bb6 15. d4 Ne4 16. Nd2 Ndf6 17. Nxe4 Nxe4 18. Bd3 h4 19. Bxe4 dxe4 20. c4 h3 21. g3 f5 22. c5 Bc7 23. Nc4 g5 24. Bc3 gxf4 25. exf4 Qd7 26. Ba5 Bxa5 27. Rxa5 Qd5 28. Ra4 Kf8 29. Ne3 Qd8 30. Qa1 a6 31. Nc4 Rg7 32. Nd6 Qh4 33. Qc3 Qg4 34. Nxb7 Qe2 35. Rf2 {[%EOG]} {Time} 1-0
+
