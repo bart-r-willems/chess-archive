@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.4.3';
+const BUILD = 'v0.4.4';
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -210,6 +210,50 @@ class Chess {
 
   get(sq) { return this.board[sqToIdx(sq)]; }
   set(sq, p) { this.board[sqToIdx(sq)] = p; }
+
+  loadFEN(fen) {
+    // Parse a FEN string into this position
+    // e.g. "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/1NBQKBNR w Kkq - 0 1"
+    this.board = new Array(64).fill(null);
+    const parts = fen.trim().split(/\s+/);
+    const ranks  = parts[0].split('/');  // rank 8 first
+    const turn   = parts[1] || 'w';
+    const castle = parts[2] || '-';
+    const ep     = parts[3] || '-';
+    const half   = parseInt(parts[4]) || 0;
+    const full   = parseInt(parts[5]) || 1;
+
+    const pieceMap = {
+      'K':'wK','Q':'wQ','R':'wR','B':'wB','N':'wN','P':'wP',
+      'k':'bK','q':'bQ','r':'bR','b':'bB','n':'bN','p':'bP',
+    };
+
+    for (let r = 0; r < 8; r++) {
+      const rankStr = ranks[r]; // rank 8-r
+      const rank = 7 - r;      // board rank 0-7
+      let file = 0;
+      for (const ch of rankStr) {
+        if (ch >= '1' && ch <= '8') {
+          file += parseInt(ch);
+        } else {
+          this.board[file + rank * 8] = pieceMap[ch] || null;
+          file++;
+        }
+      }
+    }
+
+    this.turn = turn;
+    this.castling = {
+      wK: castle.includes('K'),
+      wQ: castle.includes('Q'),
+      bK: castle.includes('k'),
+      bQ: castle.includes('q'),
+    };
+    this.ep       = ep !== '-' ? ep : null;
+    this.halfmove = half;
+    this.fullmove = full;
+    return this;
+  }
 
   clone() {
     const c = new Chess();
@@ -1046,9 +1090,12 @@ function renderBoard(chess, animate=false, fromSq=null, toSq=null) {
 // ═══════════════════════════════════════════════════════
 //  LOAD GAME
 // ═══════════════════════════════════════════════════════
-function buildPositions(moves) {
+function buildPositions(moves, startFen=null) {
   const states = [];
   const chess = new Chess();
+  if (startFen) {
+    chess.loadFEN(startFen);
+  }
   states.push(chess.clone());
   lastFrom = null; lastTo = null;
   const froms = [null];
@@ -1088,8 +1135,10 @@ function loadGame(idx) {
   currentGameIdx = idx;
   highlightGameRow(idx);
 
-  // Build all positions
-  const { states, froms, tos } = buildPositions(game.moves);
+  // Build all positions — use FEN start if present (odds games, studies, problems)
+  const startFen = (game.tags.SetUp === '1' && game.tags.FEN) ? game.tags.FEN : null;
+  if (startFen) console.log('[FEN] Using custom start:', startFen);
+  const { states, froms, tos } = buildPositions(game.moves, startFen);
   positions = states;
   window._froms = froms;
   window._tos   = tos;
