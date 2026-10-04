@@ -5,7 +5,8 @@
   "squareSets":    ["green", "brown", "black_white"],
   "pgnFiles": [
     { "label": "My Games",              "file": "../pgn/my_games.pgn" },
-    { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" }
+    { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" },
+    { "label": "Games by P. Morphy", "file": "../pgn/Morphy.pgn" }
   ],
   "piecesRoot":    "./pieces/",
   "squaresRoot":   "./squares/",
