@@ -3,7 +3,12 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.4.4';
+const BUILD = 'v0.6.2';
+
+// ═══════════════════════════════════════════════════════
+//  ECO OPENING NAMES  (loaded from openings.json at startup)
+// ═══════════════════════════════════════════════════════
+let ECO_NAMES = {};
 
 // ═══════════════════════════════════════════════════════
 //  SETTINGS
@@ -45,6 +50,17 @@ async function loadSettings() {
   if (stored) {
     SETTINGS = { ...SETTINGS, ...stored };
     console.log('[settings] localStorage overrides applied:', stored);
+  }
+
+  // Load opening names
+  try {
+    const oe = await fetch('./openings.json?v=0.6.2');
+    if (oe.ok) {
+      ECO_NAMES = await oe.json();
+      console.log('[openings] loaded', Object.keys(ECO_NAMES).length, 'entries');
+    }
+  } catch(e) {
+    console.warn('[openings] could not load openings.json:', e.message);
   }
 }
 
@@ -531,6 +547,8 @@ let currentGameIdx = 0;   // index into allGames of the loaded game
 // Game list filter state (not persisted)
 const activeFilters = {};  // { col: patternString }
 const RESULT_OPTIONS = ['', '1-0', '0-1', '1/2-1/2', '*'];
+let playerFilterText  = '';  // live player name search (OR across White/Black)
+let eventFilterValue  = '';  // event dropdown filter
 
 // Piece animation
 let animationActive = false;   // true while a piece is sliding
@@ -1153,11 +1171,9 @@ function loadGame(idx) {
   updateMoveList();
   updateInfo();
   updateControls();
+  updateBoardTitle();
 
-  document.getElementById('boardWrap').style.display='';
-  document.getElementById('controls').style.display='flex';
-  document.getElementById('kbHint').style.display='';
-  document.getElementById('loadMsg').style.display='none';
+  // board view elements are always present in #viewBoard
 }
 
 
@@ -1235,28 +1251,61 @@ function updateMoveList() {
   if (!currentGame) return;
 
   const moves = currentGame.moves;
-  for (let i=0;i<moves.length;i++) {
-    if (i%2===0) {
-      const num = document.createElement('span');
-      num.className='move-num';
-      num.textContent = (i/2+1)+'.';
-      container.appendChild(num);
+  const table = document.createElement('table');
+  table.className = 'move-table';
+
+  for (let i = 0; i < moves.length; i += 2) {
+    const tr = document.createElement('tr');
+    tr.className = 'move-row';
+
+    // Move number
+    const tdNum = document.createElement('td');
+    tdNum.className = 'mt-num';
+    tdNum.textContent = (i/2 + 1) + '.';
+    tr.appendChild(tdNum);
+
+    // White move
+    const tdW = document.createElement('td');
+    tdW.className = 'mt-white';
+    const tokW = document.createElement('span');
+    tokW.className = 'move-token';
+    tokW.textContent = moves[i];
+    tokW.dataset.idx = i + 1;
+    tokW.onclick = () => goToMove(i + 1);
+    tdW.appendChild(tokW);
+    tr.appendChild(tdW);
+
+    // Black move (may not exist on last move)
+    const tdB = document.createElement('td');
+    tdB.className = 'mt-black';
+    if (moves[i + 1] !== undefined) {
+      const tokB = document.createElement('span');
+      tokB.className = 'move-token';
+      tokB.textContent = moves[i + 1];
+      tokB.dataset.idx = i + 2;
+      tokB.onclick = () => goToMove(i + 2);
+      tdB.appendChild(tokB);
     }
-    const tok = document.createElement('span');
-    tok.className='move-token';
-    tok.textContent=moves[i];
-    tok.dataset.idx = i+1;
-    tok.onclick = () => goToMove(i+1);
-    container.appendChild(tok);
+    tr.appendChild(tdB);
+
+    table.appendChild(tr);
   }
 
-  // Result
-  if (currentGame.tags.Result && currentGame.tags.Result!=='*') {
+  container.appendChild(table);
+
+  // Result badge on its own row
+  if (currentGame.tags.Result && currentGame.tags.Result !== '*') {
+    const tr = document.createElement('tr');
+    tr.className = 'move-row';
+    const td = document.createElement('td');
+    td.colSpan = 3;
+    td.style.paddingTop = '6px';
     const res = document.createElement('span');
-    res.className='result-badge';
-    res.style.marginLeft='6px';
-    res.textContent=currentGame.tags.Result;
-    container.appendChild(res);
+    res.className = 'result-badge';
+    res.textContent = currentGame.tags.Result;
+    td.appendChild(res);
+    tr.appendChild(td);
+    table.appendChild(tr);
   }
 }
 
@@ -1278,15 +1327,21 @@ function updateInfo() {
   const rows = document.getElementById('infoRows');
   rows.innerHTML='';
 
+  // Build ECO display: "C65 (Ruy Lopez, Berlin)"
+  const ecoCode    = tags.ECO || '';
+  const ecoName    = ECO_NAMES[ecoCode] || tags.Opening || '';
+  const ecoDisplay = ecoCode
+    ? (ecoName ? `${ecoCode} (${ecoName})` : ecoCode)
+    : '';
+
   const show = [
-    ['White', tags.White],
-    ['Black', tags.Black],
-    ['Date',  tags.Date],
-    ['Event', tags.Event],
-    ['Round', tags.Round],
-    ['Result',tags.Result],
-    ['ECO',   tags.ECO],
-    ['Opening', tags.Opening],
+    ['White',  tags.White],
+    ['Black',  tags.Black],
+    ['Date',   tags.Date],
+    ['Event',  tags.Event],
+    ['Round',  tags.Round],
+    ['Result', tags.Result],
+    ['Opening',ecoDisplay],
   ];
 
   for (const [label,val] of show) {
@@ -1304,7 +1359,7 @@ function updateInfo() {
   // Single copy-link button
   const gameNumber = currentGameIdx + 1;
   const pgnIdx     = parseInt(document.getElementById('pgnSelect').value) || 0;
-  const url = `${location.origin}${location.pathname}?pgn=${pgnIdx}&game=${gameNumber}`;
+  const url = `${location.origin}${location.pathname}?pgn=${pgnIdx}&game=${gameNumber}&view=board`;
   const linkDiv = document.createElement('div');
   linkDiv.className = 'info-row';
   linkDiv.style.cssText = 'margin-top:10px;border-top:1px solid var(--border);padding-top:10px';
@@ -1345,11 +1400,8 @@ async function loadPgn(fileIdx) {
   const loadMsg = document.getElementById('loadMsg');
   loadMsg.style.display = '';
   loadMsg.textContent = 'Loading…';
-
-  // Hide board while loading new file
-  document.getElementById('boardWrap').style.display = 'none';
-  document.getElementById('controls').style.display  = 'none';
-  document.getElementById('kbHint').style.display    = 'none';
+  const wrap = document.getElementById('gameListWrap');
+  if (wrap) wrap.style.display = 'none';
 
   try {
     const resp = await fetch(entry.file + '?t=' + Date.now());
@@ -1360,6 +1412,15 @@ async function loadPgn(fileIdx) {
     allGames = parsePGN(text);
     if (allGames.length === 0) throw new Error('No games found in PGN');
     console.log('[PGN] Loaded', allGames.length, 'games from', entry.file);
+    // Reset player + event filters on file switch
+    playerFilterText = '';
+    eventFilterValue = '';
+    const pfi = document.getElementById('playerFilter');
+    const pfc = document.getElementById('playerFilterClear');
+    const efs = document.getElementById('eventFilter');
+    if (pfi) { pfi.value = ''; pfi.classList.remove('player-filter-active'); }
+    if (pfc) pfc.style.display = 'none';
+    if (efs) { efs.value = ''; efs.classList.remove('gt-toolbar-filter-active'); }
 
     loadMsg.style.display = 'none';
     populateSelector();
@@ -1374,6 +1435,7 @@ async function loadPgn(fileIdx) {
       : 0;
 
     currentGameIdx = gameIdx;
+    populateEventFilter();
     populateGameList();
     loadGame(gameIdx);
 
@@ -1383,6 +1445,41 @@ async function loadPgn(fileIdx) {
   }
 }
 
+
+
+// ═══════════════════════════════════════════════════════
+//  VIEW SWITCHING
+// ═══════════════════════════════════════════════════════
+function showView(name) {
+  // name: 'games' | 'board'
+  document.getElementById('viewGames').style.display = name === 'games' ? '' : 'none';
+  document.getElementById('viewBoard').style.display = name === 'board' ? '' : 'none';
+  document.getElementById('navGames').style.display  = name === 'games' ? '' : 'none';
+  document.getElementById('navBoard').style.display  = name === 'board' ? '' : 'none';
+
+  // Update URL without reloading
+  const params = new URLSearchParams(window.location.search);
+  if (name === 'games') {
+    params.delete('view');
+  } else {
+    params.set('view', 'board');
+  }
+  history.replaceState(null, '', '?' + params.toString());
+
+  if (name === 'board') {
+    // Update header title with game summary
+    updateBoardTitle();
+  }
+}
+
+function updateBoardTitle() {
+  const el = document.getElementById('boardTitle');
+  if (!el || !currentGame) return;
+  const w = currentGame.tags.White || '?';
+  const b = currentGame.tags.Black || '?';
+  const r = currentGame.tags.Result || '';
+  el.textContent = `${w} vs ${b}  ${r}`;
+}
 
 // ═══════════════════════════════════════════════════════
 //  FILTER ENGINE
@@ -1395,6 +1492,18 @@ function filterPatternToRegex(pattern) {
 }
 
 function gameMatchesFilters(game) {
+  // Event dropdown filter
+  if (eventFilterValue) {
+    if ((game.tags.Event || '') !== eventFilterValue) return false;
+  }
+  // Player filter: OR across White and Black, case-insensitive substring
+  if (playerFilterText) {
+    const needle = playerFilterText.toLowerCase();
+    const white  = (game.tags.White || '').toLowerCase();
+    const black  = (game.tags.Black || '').toLowerCase();
+    if (!white.includes(needle) && !black.includes(needle)) return false;
+  }
+  // Column filters
   for (const [col, pattern] of Object.entries(activeFilters)) {
     if (!pattern) continue;
     let value = '';
@@ -1525,12 +1634,21 @@ function updateFunnelStates() {
 function updateFilterStatus() {
   const bar = document.getElementById('filterStatus');
   const entries = Object.entries(activeFilters).filter(([,v]) => v);
-  if (entries.length === 0) {
+  const hasPlayer = !!playerFilterText;
+  if (entries.length === 0 && !hasPlayer && !eventFilterValue) {
     bar.style.display = 'none';
     return;
   }
   bar.style.display = 'flex';
+  const hasEvent  = !!eventFilterValue;
+  const playerChip = hasPlayer
+    ? `<span class="filter-chip">player: <em>${playerFilterText}</em></span>`
+    : '';
+  const eventChip = hasEvent
+    ? `<span class="filter-chip">event: <em>${eventFilterValue}</em></span>`
+    : '';
   bar.innerHTML = '<span style="color:var(--muted);font-size:0.7rem;margin-right:6px">Filters:</span>'
+    + playerChip + eventChip
     + entries.map(([col, val]) =>
         `<span class="filter-chip">${col}: <em>${val}</em>
           <button onclick="clearFilter('${col}')" title="Remove filter">✕</button>
@@ -1548,17 +1666,82 @@ function clearFilter(col) {
 
 function clearAllFilters() {
   Object.keys(activeFilters).forEach(k => delete activeFilters[k]);
+  playerFilterText = '';
+  eventFilterValue = '';
+  const input    = document.getElementById('playerFilter');
+  const clearBtn = document.getElementById('playerFilterClear');
+  const evSel    = document.getElementById('eventFilter');
+  if (input)    { input.value = ''; input.classList.remove('player-filter-active'); }
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (evSel)    { evSel.value = ''; evSel.classList.remove('gt-toolbar-filter-active'); }
   updateFunnelStates();
   populateGameList();
   updateFilterStatus();
 }
 
+function populateEventFilter() {
+  const sel = document.getElementById('eventFilter');
+  if (!sel) return;
+  // Collect unique events, sorted alphabetically
+  const events = [...new Set(
+    allGames.map(g => g.tags.Event || '').filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
+
+  // Rebuild options, preserve current selection if still valid
+  const prev = eventFilterValue;
+  sel.innerHTML = '<option value="">— all events —</option>';
+  events.forEach(ev => {
+    const opt = document.createElement('option');
+    opt.value = ev;
+    opt.textContent = ev;
+    if (ev === prev) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // If previous selection no longer valid, reset
+  if (prev && !events.includes(prev)) {
+    eventFilterValue = '';
+  }
+}
+
 function initFilterButtons() {
   document.querySelectorAll('.gt-funnel').forEach(btn => {
     btn.addEventListener('click', e => {
-      e.stopPropagation(); // don't trigger column sort
+      e.stopPropagation();
       openFilterPopover(btn.dataset.filterCol, btn);
     });
+  });
+
+  // Event dropdown
+  const eventSel = document.getElementById('eventFilter');
+  if (eventSel) {
+    eventSel.addEventListener('change', () => {
+      eventFilterValue = eventSel.value;
+      eventSel.classList.toggle('gt-toolbar-filter-active', !!eventFilterValue);
+      populateGameList();
+      updateFilterStatus();
+    });
+  }
+
+  const input    = document.getElementById('playerFilter');
+  const clearBtn = document.getElementById('playerFilterClear');
+  if (!input) return;
+
+  input.addEventListener('input', () => {
+    playerFilterText = input.value.trim();
+    clearBtn.style.display = playerFilterText ? '' : 'none';
+    input.classList.toggle('player-filter-active', !!playerFilterText);
+    populateGameList();
+    updateFilterStatus();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value      = '';
+    playerFilterText = '';
+    clearBtn.style.display = 'none';
+    input.classList.remove('player-filter-active');
+    populateGameList();
+    updateFilterStatus();
+    input.focus();
   });
 }
 
@@ -1579,6 +1762,7 @@ function sortKey(game, col, origIdx) {
     case 'event':  return (game.tags.Event  || '').toLowerCase();
     case 'result': return (game.tags.Result || '');
     case 'eco':    return (game.tags.ECO    || '');
+    case 'moves':  return parseInt(game.tags.PlyCount || 0);
     default:       return origIdx;
   }
 }
@@ -1609,19 +1793,23 @@ function populateGameList() {
     const date = tagVal(g, 'Date');
     const year = date.slice(0, 4); // just show year to save space
 
+    const plyCount = parseInt(g.tags.PlyCount || 0);
+    const movesStr = plyCount ? Math.ceil(plyCount / 2) : '';
     tr.innerHTML = `
       <td class="gt-col-num">${origIdx + 1}</td>
-      <td class="gt-col-name" title="${g.tags.White||''}">${truncate(g.tags.White||'?', 16)}</td>
-      <td class="gt-col-name" title="${g.tags.Black||''}">${truncate(g.tags.Black||'?', 16)}</td>
+      <td class="gt-col-name" title="${g.tags.White||''}">${truncate(g.tags.White||'?', 30)}</td>
+      <td class="gt-col-name" title="${g.tags.Black||''}">${truncate(g.tags.Black||'?', 30)}</td>
       <td class="gt-col-date">${year}</td>
-      <td class="gt-col-event" title="${g.tags.Event||''}">${truncate(g.tags.Event||'', 18)}</td>
-      <td class="gt-col-res">${resultSymbol(g.tags.Result)}</td>
-      <td class="gt-col-eco">${g.tags.ECO||''}</td>`;
+      <td class="gt-col-event" title="${g.tags.Event||''}">${truncate(g.tags.Event||'', 40)}</td>
+      <td class="gt-col-eco gt-eco-cell" title="${ECO_NAMES[g.tags.ECO] || ''}">${g.tags.ECO||''}</td>
+      <td class="gt-col-moves">${movesStr}</td>
+      <td class="gt-col-res">${resultSymbol(g.tags.Result)}</td>`;
 
     tr.onclick = () => {
       currentGameIdx = origIdx;
       loadGame(origIdx);
       highlightGameRow(origIdx);
+      showView('board');
     };
     tbody.appendChild(tr);
   });
@@ -1633,11 +1821,26 @@ function populateGameList() {
     if (col === sortCol) th.classList.add(sortDir === 1 ? 'gt-sort-asc' : 'gt-sort-desc');
   });
 
-  // Show the game list column
-  document.getElementById('gameListCol').style.display = '';
+  // Show the game list and stats
+  const wrap = document.getElementById('gameListWrap');
+  if (wrap) wrap.style.display = '';
+  updateGamesStats();
 
   // Scroll active row into view
   scrollActiveRowIntoView();
+}
+
+function updateGamesStats() {
+  const el = document.getElementById('gamesStats');
+  if (!el) return;
+  const total    = allGames.length;
+  const filtered = sortedIndices.length;
+  const hasFilter = Object.values(activeFilters).some(v => v);
+  if (hasFilter) {
+    el.textContent = `${filtered} of ${total} games`;
+  } else {
+    el.textContent = `${total} games`;
+  }
 }
 
 function truncate(str, max) {
@@ -1721,6 +1924,14 @@ async function init() {
   initGameListSort();
   initFilterButtons();
   await loadPgn(fileIdx);
+
+  // Honour ?view=board in the URL (e.g. from a shared game link)
+  const viewParam = params.get('view');
+  if (viewParam === 'board' && currentGame) {
+    showView('board');
+  } else {
+    showView('games');
+  }
 }
 
 
@@ -1987,6 +2198,7 @@ function resetToDefaults() {
 // ═══════════════════════════════════════════════════════
 document.getElementById('btnAnalyse').onclick  = toggleAnalyse;
 document.getElementById('btnSettings').onclick = openSettings;
+document.getElementById('btnBack').onclick     = () => showView('games');
 document.getElementById('modalClose').onclick  = closeSettings;
 document.getElementById('settingsModal').addEventListener('click', e => {
   if (e.target === document.getElementById('settingsModal')) closeSettings();
