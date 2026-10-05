@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess Archive Viewer</title>
-<link rel="stylesheet" href="viewer.css?v=0.6.8">
+<link rel="stylesheet" href="viewer.css?v=0.7.6">
 </head>
 <body>
 
@@ -137,19 +137,20 @@
         <div class="coord-files" id="fileCoords"></div>
         <div id="resultPopup"><div class="popup-inner" id="popupInner"></div></div>
       </div>
-
-      <div class="controls" id="controls">
-        <button class="btn" id="btnStart" title="Go to start">⏮</button>
-        <button class="btn" id="btnPrev"  title="Previous move">◀</button>
-        <button class="btn" id="btnNext"  title="Next move">▶</button>
-        <button class="btn" id="btnEnd"   title="Go to end">⏭</button>
-        <span class="move-counter" id="moveCtr"></span>
-        <button class="btn btn-analyse" id="btnAnalyse" title="Toggle Stockfish analysis">⚡ Analyse</button>
+      <!-- board-inner: constrains controls/pv to board width; sits outside the coord grid -->
+      <div class="board-inner">
+        <div class="controls" id="controls">
+          <button class="btn" id="btnStart" title="Go to start">⏮</button>
+          <button class="btn" id="btnPrev"  title="Previous move">◀</button>
+          <button class="btn" id="btnNext"  title="Next move">▶</button>
+          <button class="btn" id="btnEnd"   title="Go to end">⏭</button>
+          <span class="move-counter" id="moveCtr"></span>
+          <button class="btn btn-analyse" id="btnAnalyse" title="Toggle Stockfish analysis">⚡ Analyse</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="pv-line" id="pvLine"></div>
+        <div class="kb-hint">← → arrow keys · Home / End to jump</div>
       </div>
-
-      <div class="status" id="status"></div>
-      <div class="pv-line" id="pvLine"></div>
-      <div class="kb-hint">← → arrow keys · Home / End to jump</div>
     </div>
 
     <!-- Right: move list -->
@@ -174,6 +175,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.6.8"></script>
+<script src="chess.js?v=0.7.6"></script>
 </body>
 </html>

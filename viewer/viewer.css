@@ -575,14 +575,34 @@
     font-family: 'Ubuntu Mono', monospace;
     font-size: 0.78rem;
     color: var(--muted);
-    width: 100%;
-    max-width: 556px;  /* board (512) + eval bar (20) + gap (8) + coords (22) - ε */
+    width: 100%;      /* fills board-inner which is capped to board width */
     min-height: 1.4em;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     text-align: left;
     padding: 2px 0;
+  }
+
+  .pv-analyzing {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .pv-score {
+    font-family: 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+
+  .pv-sep {
+    color: var(--muted);
+    font-size: 0.72rem;
+    padding: 0 2px;
   }
 
   /* Scrollbar */
@@ -1092,4 +1112,101 @@ input[type=range]::-webkit-slider-thumb {
   transform: translateX(-50%);
   margin-top: 4px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* ── Arrow color pickers in settings ── */
+.sarrow-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sarrow-label {
+  font-size: 0.82rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.sarrow-picker {
+  width: 36px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.sarrow-preview {
+  width: 48px;
+  height: 10px;
+  border-radius: 5px;
+  display: inline-block;
+}
+
+/* ── board-inner: aligns controls/pv-line to exact board width ── */
+.board-inner {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Indent by coord-ranks column width so controls align with the board */
+  margin-left: 22px;
+  /* Width set dynamically by applyBoardSize() */
+}
+
+/* ── Analysis mode toggle & presets ── */
+.smode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.smode-btn {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 7px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 0.82rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.smode-btn:hover    { border-color: var(--gold-dim); color: var(--text); }
+.smode-btn.smode-active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(201,168,76,0.08);
+}
+
+.smode-hidden { display: none; }
+
+.spreset-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.spreset-btn {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 8px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 0.8rem;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.spreset-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+.spreset-btn.spreset-active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(201,168,76,0.08);
 }

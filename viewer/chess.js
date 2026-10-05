@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.6.8';
+const BUILD = 'v0.7.6';
 
 // ═══════════════════════════════════════════════════════
 //  ECO OPENING NAMES  (loaded from openings.json at startup)
@@ -24,9 +24,15 @@ const DEFAULTS = {
   piecesRoot:    './pieces/',
   squaresRoot:   './squares/',
   popupDuration: 1500,
-  analyseDepth:  18,
+  analyseMode:   'depth',  // 'depth' | 'time'
+  analyseDepth:  14,       // Stockfish search depth
+  analyseTime:   500,      // Stockfish search time in ms
   boardSize:      512,  // px — board width/height
-  animationSpeed: 0.1,  // seconds per square of piece travel
+  animationSpeed:  0.1,   // seconds per square of piece travel
+  arrowPlayed:      '#4a90d9',  // color of the played-move arrow
+  arrowPlayedAlpha:  0.85,     // opacity of the played-move arrow
+  arrowEngine:      '#ff8c00',  // color of the engine best-move arrow
+  arrowEngineAlpha:  0.5,      // opacity of the engine arrow
 };
 
 let SETTINGS = { ...DEFAULTS };
@@ -95,7 +101,9 @@ function exportSettings() {
     piecesRoot:    SETTINGS.piecesRoot,
     squaresRoot:   SETTINGS.squaresRoot,
     popupDuration: SETTINGS.popupDuration,
+    analyseMode:   SETTINGS.analyseMode,
     analyseDepth:  SETTINGS.analyseDepth,
+    analyseTime:   SETTINGS.analyseTime,
     boardSize:     SETTINGS.boardSize,
   };
   const blob = new Blob([JSON.stringify(exportable, null, 2)], {type: 'application/json'});
@@ -625,9 +633,9 @@ function handleSfMessage(msg) {
     const mateM  = msg.match(/score mate (-?\d+)/);
     const pvM    = msg.match(/ pv ((?:[a-h][1-8][a-h][1-8][qrbn]? *)+)/);
     const depth  = depthM ? parseInt(depthM[1]) : 0;
-    const target = SETTINGS.analyseDepth ?? 18;
-
-    if (depth < target - 2) return;
+    // In time mode accept all depths; in depth mode wait for near-target depth
+    const target = SETTINGS.analyseDepth ?? 14;
+    if ((SETTINGS.analyseMode || 'depth') === 'depth' && depth < target - 2) return;
 
     let cp = null;
     if (mateM) {
@@ -664,26 +672,30 @@ function handleSfMessage(msg) {
 function analysePosition() {
   if (!sfWorker || !sfAnalysing) return;
 
-  // Analyse the position BEFORE the current move was played,
-  // so bestMove and played move refer to the same decision point.
-  // At moveIndex 0 (start) there is no prior move, so use current position.
-  const analysisIdx = moveIndex > 0 ? moveIndex - 1 : 0;
-  const chess = positions[analysisIdx];
+  // Analyse the CURRENT position — engine shows best response to what was played.
+  // e.g. after 2.Qh5? it shows Black's best reply and the eval of that.
+  const chess = positions[moveIndex];
   if (!chess) return;
 
   sfBestMove = null;
   sfPvLine   = '';
   sfPvCp     = null;
-  clearArrows();
-  clearPvLine();
+  drawArrows(); // redraw played-move arrow immediately; engine arrow comes async
+  // Show "analyzing" placeholder immediately
+  const pvEl = document.getElementById('pvLine');
+  if (pvEl) pvEl.innerHTML = '<span class="pv-analyzing">Engine analyzing…</span>';
 
   const fen = fenFromPosition(chess);
   sfCurrentFen = fen;
-  const depth = SETTINGS.analyseDepth ?? 18;
-
   sfWorker.postMessage('stop');
   sfWorker.postMessage(`position fen ${fen}`);
-  sfWorker.postMessage(`go depth ${depth}`);
+  if ((SETTINGS.analyseMode || 'depth') === 'time') {
+    const ms = SETTINGS.analyseTime ?? 500;
+    sfWorker.postMessage(`go movetime ${ms}`);
+  } else {
+    const depth = SETTINGS.analyseDepth ?? 14;
+    sfWorker.postMessage(`go depth ${depth}`);
+  }
 }
 
 function toggleAnalyse() {
@@ -797,29 +809,23 @@ function drawArrows() {
   const svg = document.getElementById('arrowLayer');
   if (!svg) return;
 
-  // Played move (lastFrom -> lastTo)
-  const playedFrom = lastFrom;
-  const playedTo   = lastTo;
+  const playedColor  = SETTINGS.arrowPlayed      || '#4a90d9';
+  const playedAlpha  = SETTINGS.arrowPlayedAlpha  ?? 0.85;
+  const engineColor  = SETTINGS.arrowEngine      || '#ff8c00';
+  const engineAlpha  = SETTINGS.arrowEngineAlpha  ?? 0.5;
 
-  // Best move from engine
-  const bestFrom = sfBestMove ? sfBestMove.slice(0,2) : null;
-  const bestTo   = sfBestMove ? sfBestMove.slice(2,4) : null;
+  // Ghost engine arrow — best move from current position (drawn first, below played move)
+  if (sfAnalysing && sfBestMove) {
+    const bestFrom = sfBestMove.slice(0, 2);
+    const bestTo   = sfBestMove.slice(2, 4);
+    makeArrow(bestFrom, bestTo, engineColor, engineAlpha)
+      .forEach(el => svg.appendChild(el));
+  }
 
-  const sameMove = bestFrom && playedFrom &&
-                   bestFrom === playedFrom && bestTo === playedTo;
-
-  if (sameMove) {
-    // Gold: played move was the best move
-    makeArrow(playedFrom, playedTo, '#c9a84c', '0.85').forEach(el => svg.appendChild(el));
-  } else {
-    // Blue: played move
-    if (playedFrom && playedTo) {
-      makeArrow(playedFrom, playedTo, '#4a90d9', '0.75').forEach(el => svg.appendChild(el));
-    }
-    // Green: best move
-    if (bestFrom && bestTo) {
-      makeArrow(bestFrom, bestTo, '#4caf50', '0.85').forEach(el => svg.appendChild(el));
-    }
+  // Played-move arrow — always shown when there is a played move
+  if (lastFrom && lastTo) {
+    makeArrow(lastFrom, lastTo, playedColor, playedAlpha)
+      .forEach(el => svg.appendChild(el));
   }
 }
 
@@ -875,11 +881,11 @@ function buildSanFromUci(chess, uci) {
 function updatePvLine() {
   const el = document.getElementById('pvLine');
   if (!el) return;
-  if (!sfPvLine || !sfAnalysing) { el.textContent = ''; return; }
+  if (!sfAnalysing) { el.textContent = ''; return; }
+  if (!sfPvLine)    { el.innerHTML = '<span class="pv-analyzing">Engine analyzing…</span>'; return; }
 
-  // Get the position we analysed (before current move)
-  const analysisIdx = moveIndex > 0 ? moveIndex - 1 : 0;
-  const chess = positions[analysisIdx];
+  // PV starts from the current position
+  const chess = positions[moveIndex];
   if (!chess) return;
 
   const uciMoves = sfPvLine.trim().split(/\s+/).filter(Boolean);
@@ -906,15 +912,17 @@ function updatePvLine() {
     isWhite = !isWhite;
   }
 
-  // Score prefix
-  let scoreStr = '';
+  // Score — styled separately so "-0.7 5." can't be misread as "-0.75"
+  let scoreHtml = '';
   if (sfPvCp !== null) {
-    if (sfPvCp >= 9999)       scoreStr = '+M ';
-    else if (sfPvCp <= -9999) scoreStr = '−M ';
-    else scoreStr = (sfPvCp >= 0 ? '+' : '−') + Math.abs(sfPvCp/100).toFixed(1) + ' ';
+    let scoreText;
+    if (sfPvCp >= 9999)       scoreText = '+M';
+    else if (sfPvCp <= -9999) scoreText = '−M';
+    else scoreText = (sfPvCp >= 0 ? '+' : '−') + Math.abs(sfPvCp/100).toFixed(1);
+    scoreHtml = `<span class="pv-score">${scoreText}</span><span class="pv-sep"> ▸ </span>`;
   }
 
-  el.textContent = scoreStr + moveNums.join(' ');
+  el.innerHTML = scoreHtml + moveNums.join(' ');
 }
 
 function clearPvLine() {
@@ -953,8 +961,10 @@ function applyBoardSize() {
   const bar = document.getElementById('evalBarWrap');
   if (bar) bar.style.height = sz + 'px';
   // PV line max-width
-  const pv = document.getElementById('pvLine');
-  if (pv) pv.style.maxWidth = (sz + 50) + 'px';
+  // Set board-inner width to match the board exactly — pv-line and controls
+  // inherit this width via width:100%, giving perfect alignment
+  const boardInner = document.querySelector('.board-inner');
+  if (boardInner) boardInner.style.width = sz + 'px';
   // Game list height matches board
   const glw = document.querySelector('.game-list-wrap');
   if (glw) glw.style.maxHeight = sz + 'px';
@@ -1208,9 +1218,9 @@ function goToMove(idx, silent=false) {
                  result === '1/2-1/2' ? '½ – ½' : '∗';
     showResultPopup(text);
   }
-  // Trigger engine analysis if active
+  // Always draw the played-move arrow; trigger engine analysis if active
+  drawArrows();
   if (sfAnalysing) analysePosition();
-  else drawArrows(); // still draw played-move arrow
 }
 
 function updateControls() {
@@ -1475,7 +1485,6 @@ function showView(name) {
   history.replaceState(null, '', '?' + params.toString());
 
   if (name === 'board') {
-    // Update header title with game summary
     updateBoardTitle();
   }
 }
@@ -2114,6 +2123,68 @@ function buildBoardTab(panel) {
     if (positions[moveIndex]) renderBoard(positions[moveIndex]);
     drawArrows();
   };
+
+  // Arrow color pickers
+  const arrowSection = document.createElement('div');
+  arrowSection.className = 'srow';
+  arrowSection.innerHTML = `
+    <h3 class="slabel">Arrow Colors</h3>
+    <div class="sarrow-row">
+      <label class="sarrow-label">Played move</label>
+      <input type="color" id="arrowPlayedPicker" value="${SETTINGS.arrowPlayed || '#4a90d9'}"
+        class="sarrow-picker">
+      <span class="sarrow-preview" id="arrowPlayedPreview"
+        style="background:${SETTINGS.arrowPlayed || '#4a90d9'}"></span>
+    </div>
+    <div class="sarrow-row">
+      <label class="sarrow-label">Engine suggestion</label>
+      <input type="color" id="arrowEnginePicker" value="${SETTINGS.arrowEngine || '#ff8c00'}"
+        class="sarrow-picker">
+      <span class="sarrow-preview" id="arrowEnginePreview"
+        style="background:${SETTINGS.arrowEngine || '#ff8c00'}"></span>
+    </div>`;
+  panel.appendChild(arrowSection);
+
+  document.getElementById('arrowPlayedPicker').oninput = function() {
+    document.getElementById('arrowPlayedPreview').style.background = this.value;
+    applyAndSave('arrowPlayed', this.value);
+    drawArrows();
+  };
+  document.getElementById('arrowEnginePicker').oninput = function() {
+    document.getElementById('arrowEnginePreview').style.background = this.value;
+    applyAndSave('arrowEngine', this.value);
+    drawArrows();
+  };
+
+  // Alpha sliders
+  const alphaSection = document.createElement('div');
+  alphaSection.className = 'srow';
+  const pa = SETTINGS.arrowPlayedAlpha  ?? 0.85;
+  const ea = SETTINGS.arrowEngineAlpha  ?? 0.5;
+  alphaSection.innerHTML = `
+    <h3 class="slabel">Arrow Opacity</h3>
+    <div class="sarrow-row">
+      <label class="sarrow-label">Played move</label>
+      <input type="range" min="0.1" max="1" step="0.05" value="${pa}" id="arrowPlayedAlpha" style="flex:1">
+      <span id="arrowPlayedAlphaVal" style="font-size:0.72rem;color:var(--muted);width:32px;text-align:right">${Math.round(pa*100)}%</span>
+    </div>
+    <div class="sarrow-row">
+      <label class="sarrow-label">Engine suggestion</label>
+      <input type="range" min="0.1" max="1" step="0.05" value="${ea}" id="arrowEngineAlpha" style="flex:1">
+      <span id="arrowEngineAlphaVal" style="font-size:0.72rem;color:var(--muted);width:32px;text-align:right">${Math.round(ea*100)}%</span>
+    </div>`;
+  panel.appendChild(alphaSection);
+
+  document.getElementById('arrowPlayedAlpha').oninput = function() {
+    document.getElementById('arrowPlayedAlphaVal').textContent = Math.round(this.value*100) + '%';
+    applyAndSave('arrowPlayedAlpha', parseFloat(this.value));
+    drawArrows();
+  };
+  document.getElementById('arrowEngineAlpha').oninput = function() {
+    document.getElementById('arrowEngineAlphaVal').textContent = Math.round(this.value*100) + '%';
+    applyAndSave('arrowEngineAlpha', parseFloat(this.value));
+    drawArrows();
+  };
 }
 
 // ── Pieces tab ──
@@ -2188,44 +2259,83 @@ function buildPgnTab(panel) {
 
 // ── Analysis tab ──
 function buildAnalysisTab(panel) {
-  const depth = SETTINGS.analyseDepth  || 18;
+  const mode  = SETTINGS.analyseMode   || 'depth';
+  const depth = SETTINGS.analyseDepth  ?? 14;
+  const ms    = SETTINGS.analyseTime   ?? 500;
   const popup = SETTINGS.popupDuration || 1500;
   const anim  = SETTINGS.animationSpeed ?? 0.1;
   const animLabel = anim === 0 ? 'Off' : anim.toFixed(2) + 's / sq';
 
-  panel.innerHTML = `
-    <div class="srow">
-      <h3 class="slabel">Analysis Depth</h3>
-      <div class="sslider-wrap">
-        <input type="range" min="8" max="28" step="1" value="${depth}" id="depthSlider" style="width:100%">
-        <div class="sslider-labels">
-          <span>8</span><span id="depthVal">depth ${depth}</span><span>28</span>
-        </div>
-      </div>
-    </div>
-    <div class="srow">
-      <h3 class="slabel">Game-end Popup Duration</h3>
-      <div class="sslider-wrap">
-        <input type="range" min="500" max="4000" step="250" value="${popup}" id="popupSlider" style="width:100%">
-        <div class="sslider-labels">
-          <span>0.5s</span><span id="popupVal">${(popup/1000).toFixed(1)}s</span><span>4s</span>
-        </div>
-      </div>
-    </div>
-    <div class="srow">
-      <h3 class="slabel">Piece Animation Speed</h3>
-      <div class="sslider-wrap">
-        <input type="range" min="0" max="0.3" step="0.02" value="${anim}" id="animSlider" style="width:100%">
-        <div class="sslider-labels">
-          <span>Off</span><span id="animVal">${animLabel}</span><span>0.3s / sq</span>
-        </div>
-      </div>
-    </div>`;
+  panel.innerHTML = '';
 
-  document.getElementById('depthSlider').oninput = function() {
-    document.getElementById('depthVal').textContent = 'depth ' + this.value;
-    applyAndSave('analyseDepth', parseInt(this.value));
-  };
+  // Mode toggle
+  const modeRow = document.createElement('div');
+  modeRow.className = 'srow';
+  modeRow.innerHTML = '<h3 class="slabel">Analysis Mode</h3>'
+    + '<div class="smode-toggle">'
+    + '<button class="smode-btn ' + (mode==='depth'?'smode-active':'') + '" id="modeDepthBtn">Fixed Depth</button>'
+    + '<button class="smode-btn ' + (mode==='time'?'smode-active':'') + '" id="modeTimeBtn">Fixed Time</button>'
+    + '</div>';
+  panel.appendChild(modeRow);
+
+  // Depth presets
+  const depthRow = document.createElement('div');
+  depthRow.className = 'srow smode-section' + (mode==='time' ? ' smode-hidden' : '');
+  depthRow.id = 'depthSection';
+  depthRow.innerHTML = '<h3 class="slabel">Depth</h3><div class="spreset-row">'
+    + ['10:10 — Fast','14:14 — Balanced','18:18 — Deep'].map(s => {
+        const [val,label] = s.split(':');
+        return '<button class="spreset-btn ' + (depth==val?'spreset-active':'') + '" data-val="' + val + '">' + label + '</button>';
+      }).join('')
+    + '</div>';
+  panel.appendChild(depthRow);
+
+  // Time presets
+  const timeRow = document.createElement('div');
+  timeRow.className = 'srow smode-section' + (mode==='depth' ? ' smode-hidden' : '');
+  timeRow.id = 'timeSection';
+  timeRow.innerHTML = '<h3 class="slabel">Time per move</h3><div class="spreset-row">'
+    + ['250:0.25s — Fast','500:0.5s — Balanced','1000:1s — Thorough'].map(s => {
+        const [val,label] = s.split(':');
+        return '<button class="spreset-btn ' + (ms==val?'spreset-active':'') + '" data-val="' + val + '">' + label + '</button>';
+      }).join('')
+    + '</div>';
+  panel.appendChild(timeRow);
+
+  // Popup & animation
+  const restRow = document.createElement('div');
+  restRow.innerHTML = '<div class="srow"><h3 class="slabel">Game-end Popup Duration</h3>'
+    + '<div class="sslider-wrap"><input type="range" min="500" max="4000" step="250" value="' + popup + '" id="popupSlider" style="width:100%">'
+    + '<div class="sslider-labels"><span>0.5s</span><span id="popupVal">' + (popup/1000).toFixed(1) + 's</span><span>4s</span></div></div></div>'
+    + '<div class="srow"><h3 class="slabel">Piece Animation Speed</h3>'
+    + '<div class="sslider-wrap"><input type="range" min="0" max="0.3" step="0.02" value="' + anim + '" id="animSlider" style="width:100%">'
+    + '<div class="sslider-labels"><span>Off</span><span id="animVal">' + animLabel + '</span><span>0.3s / sq</span></div></div></div>';
+  panel.appendChild(restRow);
+
+  function setMode(m) {
+    applyAndSave('analyseMode', m);
+    document.getElementById('modeDepthBtn').classList.toggle('smode-active', m==='depth');
+    document.getElementById('modeTimeBtn').classList.toggle('smode-active',  m==='time');
+    document.getElementById('depthSection').classList.toggle('smode-hidden', m==='time');
+    document.getElementById('timeSection').classList.toggle('smode-hidden',  m==='depth');
+  }
+  document.getElementById('modeDepthBtn').onclick = () => setMode('depth');
+  document.getElementById('modeTimeBtn').onclick  = () => setMode('time');
+
+  depthRow.querySelectorAll('.spreset-btn').forEach(btn => {
+    btn.onclick = () => {
+      depthRow.querySelectorAll('.spreset-btn').forEach(b => b.classList.remove('spreset-active'));
+      btn.classList.add('spreset-active');
+      applyAndSave('analyseDepth', parseInt(btn.dataset.val));
+    };
+  });
+  timeRow.querySelectorAll('.spreset-btn').forEach(btn => {
+    btn.onclick = () => {
+      timeRow.querySelectorAll('.spreset-btn').forEach(b => b.classList.remove('spreset-active'));
+      btn.classList.add('spreset-active');
+      applyAndSave('analyseTime', parseInt(btn.dataset.val));
+    };
+  });
   document.getElementById('popupSlider').oninput = function() {
     document.getElementById('popupVal').textContent = (this.value/1000).toFixed(1) + 's';
     applyAndSave('popupDuration', parseInt(this.value));

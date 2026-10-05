@@ -1,17 +1,39 @@
 {
-  "pieces":        "merida",
-  "squares":       "green",
-  "pieceSets":     ["merida", "leipzig"],
-  "squareSets":    ["green", "brown", "black_white", "green_white"],
-  "pgnFiles": [
-    { "label": "My Games",              "file": "../pgn/my_games.pgn" },
-    { "label": "Games by A. Anderssen", "file": "../pgn/Anderssen.pgn" },
-    { "label": "Games by P. Morphy",    "file": "../pgn/Morphy.pgn" }
+  "pieces": "merida",
+  "squares": "green",
+  "pieceSets": [
+    "merida",
+    "leipzig"
   ],
-  "piecesRoot":    "./pieces/",
-  "squaresRoot":   "./squares/",
+  "squareSets": [
+    "green",
+    "brown",
+    "black_white"
+  ],
+  "pgnFiles": [
+    {
+      "label": "My Games",
+      "file": "../pgn/my_games.pgn"
+    },
+    {
+      "label": "Games by A. Anderssen",
+      "file": "../pgn/Anderssen.pgn"
+    },
+    {
+      "label": "Games by P. Morphy",
+      "file": "../pgn/Morphy.pgn"
+    }
+  ],
+  "piecesRoot": "./pieces/",
+  "squaresRoot": "./squares/",
   "popupDuration": 1500,
-  "analyseDepth":   18,
-  "boardSize":      512,
-  "animationSpeed": 0.1
+  "analyseDepth": 14,
+  "boardSize": 512,
+  "animationSpeed": 0.1,
+  "arrowPlayed": "#4a90d9",
+  "arrowEngine": "#ff8c00",
+  "arrowEngineAlpha": 0.5,
+  "arrowPlayedAlpha": 0.85,
+  "analyseMode": "depth",
+  "analyseTime": 500
 }
