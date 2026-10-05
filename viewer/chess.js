@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.6.3';
+const BUILD = 'v0.6.8';
 
 // ═══════════════════════════════════════════════════════
 //  ECO OPENING NAMES  (loaded from openings.json at startup)
@@ -1670,6 +1670,7 @@ function updateFilterStatus() {
         </span>`
       ).join('')
     + `<button class="btn" style="margin-left:auto;font-size:0.7rem;padding:2px 8px;color:var(--muted)" onclick="clearAllFilters()">Clear all</button>`;
+  requestAnimationFrame(resizeGameList);
 }
 
 function clearFilter(col) {
@@ -1716,7 +1717,7 @@ function populateYearFilter() {
   const years = [...new Set(
     allGames.map(g => (g.tags.Date || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y))
   )].sort();
-  populateDropdown('yearFilter', years, yearFilterValue, '— all years —');
+  populateDropdown('yearFilter', years, yearFilterValue, '—');
   if (yearFilterValue && !years.includes(yearFilterValue)) yearFilterValue = '';
 }
 
@@ -1724,7 +1725,7 @@ function populateEcoFilter() {
   const codes = [...new Set(
     allGames.map(g => g.tags.ECO || '').filter(Boolean)
   )].sort();
-  populateDropdown('ecoFilter', codes, ecoFilterValue, '— all —');
+  populateDropdown('ecoFilter', codes, ecoFilterValue, '—');
   if (ecoFilterValue && !codes.includes(ecoFilterValue)) ecoFilterValue = '';
 }
 
@@ -1807,6 +1808,23 @@ function sortKey(game, col, origIdx) {
 
 function populateSelector() { populateGameList(); } // keep compatibility
 
+function resizeGameList() {
+  const wrap = document.getElementById('gameListWrap');
+  if (!wrap) return;
+  // Measure everything that sits above the scrollable list area
+  const headerEl  = document.querySelector('header');
+  const filterBar = document.getElementById('filterStatus');
+  const headerH   = headerEl  ? headerEl.getBoundingClientRect().height  : 0;
+  const filterH   = filterBar && filterBar.style.display !== 'none'
+                    ? filterBar.getBoundingClientRect().height : 0;
+  // wrap.offsetTop gives us the distance from the top of the page to the
+  // game list container — no double-counting needed
+  const wrapTop   = wrap.getBoundingClientRect().top;
+  const available = window.innerHeight - wrapTop - filterH - 2;
+  wrap.style.height    = available + 'px';
+  wrap.style.maxHeight = available + 'px';
+}
+
 function populateGameList() {
   // Build sorted + filtered index array
   sortedIndices = allGames.map((_, i) => i).filter(i => gameMatchesFilters(allGames[i]));
@@ -1863,6 +1881,8 @@ function populateGameList() {
   const wrap = document.getElementById('gameListWrap');
   if (wrap) wrap.style.display = '';
   updateGamesStats();
+  // Resize after a frame so thead is painted and measurable
+  requestAnimationFrame(resizeGameList);
 
   // Scroll active row into view
   scrollActiveRowIntoView();
@@ -2237,6 +2257,7 @@ function resetToDefaults() {
 document.getElementById('btnAnalyse').onclick  = toggleAnalyse;
 document.getElementById('btnSettings').onclick = openSettings;
 document.getElementById('btnBack').onclick     = () => showView('games');
+window.addEventListener('resize', resizeGameList);
 document.getElementById('modalClose').onclick  = closeSettings;
 document.getElementById('settingsModal').addEventListener('click', e => {
   if (e.target === document.getElementById('settingsModal')) closeSettings();

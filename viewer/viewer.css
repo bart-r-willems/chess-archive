@@ -5,6 +5,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    --header-h:  53px;   /* header height — update if header padding changes */
     --bg:        #0f0e0c;
     --surface:   #1a1916;
     --border:    #2e2c28;
@@ -102,6 +103,12 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    height: 0; /* forces flex child to not exceed parent */
+  }
+
+  #viewGames {
+    height: calc(100vh - var(--header-h));
+    max-height: calc(100vh - var(--header-h));
   }
 
   /* ── GAMES view ── */
@@ -167,15 +174,11 @@
   .gt-toolbar-select:focus { border-color: var(--gold-dim); }
   .gt-toolbar-filter-active { border-color: var(--gold) !important; color: var(--gold); }
 
-  /* Game list fills remaining height */
+  /* Game list — height set dynamically by resizeGameList() in JS */
   .game-list-wrap {
-    flex: 1;
     overflow-y: auto;
-    border-top: none;
-    border-radius: 0;
     border: none;
-    background: var(--surface);
-    min-height: 0;
+    background: var(--bg);
   }
 
   /* ── BOARD view ── */
@@ -1014,6 +1017,7 @@ input[type=range]::-webkit-slider-thumb {
 /* ── View transitions ── */
 .view {
   animation: viewFadeIn 0.2s ease;
+  /* Note: layout properties set in the main .view rule above */
 }
 
 @keyframes viewFadeIn {
@@ -1026,6 +1030,7 @@ input[type=range]::-webkit-slider-thumb {
   padding: 6px 24px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  min-height: 0;
 }
 
 /* ── Player filter ── */
