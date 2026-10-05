@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess Archive Viewer</title>
-<link rel="stylesheet" href="viewer.css?v=0.6.2">
+<link rel="stylesheet" href="viewer.css?v=0.6.3">
 </head>
 <body>
 
@@ -49,7 +49,14 @@
               </div>
             </div>
           </td>
-          <td class="gt-col-date"></td>
+          <td class="gt-col-date">
+            <div class="gt-toolbar-cell">
+              <label class="gt-toolbar-label">Year</label>
+              <select id="yearFilter" class="gt-toolbar-select gt-toolbar-filter">
+                <option value="">— all —</option>
+              </select>
+            </div>
+          </td>
           <td class="gt-col-event">
             <div class="gt-toolbar-cell">
               <label class="gt-toolbar-label">Event</label>
@@ -58,7 +65,14 @@
               </select>
             </div>
           </td>
-          <td class="gt-col-eco"></td>
+          <td class="gt-col-eco">
+            <div class="gt-toolbar-cell">
+              <label class="gt-toolbar-label">ECO</label>
+              <select id="ecoFilter" class="gt-toolbar-select gt-toolbar-filter">
+                <option value="">— all —</option>
+              </select>
+            </div>
+          </td>
           <td class="gt-col-moves"></td>
           <td class="gt-col-res">
             <div class="gt-toolbar-cell" style="text-align:right">
@@ -160,6 +174,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.6.2"></script>
+<script src="chess.js?v=0.6.3"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.6.2';
+const BUILD = 'v0.6.3';
 
 // ═══════════════════════════════════════════════════════
 //  ECO OPENING NAMES  (loaded from openings.json at startup)
@@ -549,6 +549,8 @@ const activeFilters = {};  // { col: patternString }
 const RESULT_OPTIONS = ['', '1-0', '0-1', '1/2-1/2', '*'];
 let playerFilterText  = '';  // live player name search (OR across White/Black)
 let eventFilterValue  = '';  // event dropdown filter
+let yearFilterValue   = '';  // year dropdown filter
+let ecoFilterValue    = '';  // eco dropdown filter
 
 // Piece animation
 let animationActive = false;   // true while a piece is sliding
@@ -1412,15 +1414,19 @@ async function loadPgn(fileIdx) {
     allGames = parsePGN(text);
     if (allGames.length === 0) throw new Error('No games found in PGN');
     console.log('[PGN] Loaded', allGames.length, 'games from', entry.file);
-    // Reset player + event filters on file switch
+    // Reset all filters on file switch
     playerFilterText = '';
     eventFilterValue = '';
+    yearFilterValue  = '';
+    ecoFilterValue   = '';
     const pfi = document.getElementById('playerFilter');
     const pfc = document.getElementById('playerFilterClear');
-    const efs = document.getElementById('eventFilter');
     if (pfi) { pfi.value = ''; pfi.classList.remove('player-filter-active'); }
     if (pfc) pfc.style.display = 'none';
-    if (efs) { efs.value = ''; efs.classList.remove('gt-toolbar-filter-active'); }
+    ['eventFilter','yearFilter','ecoFilter'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.classList.remove('gt-toolbar-filter-active'); }
+    });
 
     loadMsg.style.display = 'none';
     populateSelector();
@@ -1435,6 +1441,8 @@ async function loadPgn(fileIdx) {
       : 0;
 
     currentGameIdx = gameIdx;
+    populateYearFilter();
+    populateEcoFilter();
     populateEventFilter();
     populateGameList();
     loadGame(gameIdx);
@@ -1492,6 +1500,15 @@ function filterPatternToRegex(pattern) {
 }
 
 function gameMatchesFilters(game) {
+  // Year dropdown filter
+  if (yearFilterValue) {
+    const year = (game.tags.Date || '').slice(0, 4);
+    if (year !== yearFilterValue) return false;
+  }
+  // ECO dropdown filter
+  if (ecoFilterValue) {
+    if ((game.tags.ECO || '') !== ecoFilterValue) return false;
+  }
   // Event dropdown filter
   if (eventFilterValue) {
     if ((game.tags.Event || '') !== eventFilterValue) return false;
@@ -1635,20 +1652,18 @@ function updateFilterStatus() {
   const bar = document.getElementById('filterStatus');
   const entries = Object.entries(activeFilters).filter(([,v]) => v);
   const hasPlayer = !!playerFilterText;
-  if (entries.length === 0 && !hasPlayer && !eventFilterValue) {
+  if (entries.length === 0 && !hasPlayer && !eventFilterValue && !yearFilterValue && !ecoFilterValue) {
     bar.style.display = 'none';
     return;
   }
   bar.style.display = 'flex';
-  const hasEvent  = !!eventFilterValue;
-  const playerChip = hasPlayer
-    ? `<span class="filter-chip">player: <em>${playerFilterText}</em></span>`
-    : '';
-  const eventChip = hasEvent
-    ? `<span class="filter-chip">event: <em>${eventFilterValue}</em></span>`
-    : '';
+  const chip = (label, val) => val
+    ? `<span class="filter-chip">${label}: <em>${val}</em></span>` : '';
   bar.innerHTML = '<span style="color:var(--muted);font-size:0.7rem;margin-right:6px">Filters:</span>'
-    + playerChip + eventChip
+    + chip('player', playerFilterText)
+    + chip('year',   yearFilterValue)
+    + chip('eco',    ecoFilterValue)
+    + chip('event',  eventFilterValue)
     + entries.map(([col, val]) =>
         `<span class="filter-chip">${col}: <em>${val}</em>
           <button onclick="clearFilter('${col}')" title="Remove filter">✕</button>
@@ -1673,34 +1688,52 @@ function clearAllFilters() {
   const evSel    = document.getElementById('eventFilter');
   if (input)    { input.value = ''; input.classList.remove('player-filter-active'); }
   if (clearBtn) clearBtn.style.display = 'none';
-  if (evSel)    { evSel.value = ''; evSel.classList.remove('gt-toolbar-filter-active'); }
+  ['eventFilter','yearFilter','ecoFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('gt-toolbar-filter-active'); }
+  });
+  yearFilterValue = '';
+  ecoFilterValue  = '';
   updateFunnelStates();
   populateGameList();
   updateFilterStatus();
 }
 
-function populateEventFilter() {
-  const sel = document.getElementById('eventFilter');
+function populateDropdown(id, values, current, allLabel) {
+  const sel = document.getElementById(id);
   if (!sel) return;
-  // Collect unique events, sorted alphabetically
+  sel.innerHTML = `<option value="">${allLabel}</option>`;
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    if (v === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function populateYearFilter() {
+  const years = [...new Set(
+    allGames.map(g => (g.tags.Date || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y))
+  )].sort();
+  populateDropdown('yearFilter', years, yearFilterValue, '— all years —');
+  if (yearFilterValue && !years.includes(yearFilterValue)) yearFilterValue = '';
+}
+
+function populateEcoFilter() {
+  const codes = [...new Set(
+    allGames.map(g => g.tags.ECO || '').filter(Boolean)
+  )].sort();
+  populateDropdown('ecoFilter', codes, ecoFilterValue, '— all —');
+  if (ecoFilterValue && !codes.includes(ecoFilterValue)) ecoFilterValue = '';
+}
+
+function populateEventFilter() {
   const events = [...new Set(
     allGames.map(g => g.tags.Event || '').filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
-
-  // Rebuild options, preserve current selection if still valid
-  const prev = eventFilterValue;
-  sel.innerHTML = '<option value="">— all events —</option>';
-  events.forEach(ev => {
-    const opt = document.createElement('option');
-    opt.value = ev;
-    opt.textContent = ev;
-    if (ev === prev) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  // If previous selection no longer valid, reset
-  if (prev && !events.includes(prev)) {
-    eventFilterValue = '';
-  }
+  populateDropdown('eventFilter', events, eventFilterValue, '— all events —');
+  if (eventFilterValue && !events.includes(eventFilterValue)) eventFilterValue = '';
 }
 
 function initFilterButtons() {
@@ -1711,16 +1744,21 @@ function initFilterButtons() {
     });
   });
 
-  // Event dropdown
-  const eventSel = document.getElementById('eventFilter');
-  if (eventSel) {
-    eventSel.addEventListener('change', () => {
-      eventFilterValue = eventSel.value;
-      eventSel.classList.toggle('gt-toolbar-filter-active', !!eventFilterValue);
+  // Helper to wire a toolbar dropdown
+  function wireDropdown(id, setter) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.addEventListener('change', () => {
+      setter(sel.value);
+      sel.classList.toggle('gt-toolbar-filter-active', !!sel.value);
       populateGameList();
       updateFilterStatus();
     });
   }
+
+  wireDropdown('yearFilter',  v => { yearFilterValue  = v; });
+  wireDropdown('ecoFilter',   v => { ecoFilterValue   = v; });
+  wireDropdown('eventFilter', v => { eventFilterValue = v; });
 
   const input    = document.getElementById('playerFilter');
   const clearBtn = document.getElementById('playerFilterClear');
