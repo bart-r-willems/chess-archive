@@ -22,6 +22,10 @@
     {
       "label": "Games by P. Morphy",
       "file": "../pgn/Morphy.pgn"
+    },
+    {
+      "label": "Games by R. Nezhmetdinov",
+      "file": "../pgn/Nezhhmetdinov.pgn"
     }
   ],
   "piecesRoot": "./pieces/",
