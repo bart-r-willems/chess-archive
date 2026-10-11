@@ -1210,3 +1210,38 @@ input[type=range]::-webkit-slider-thumb {
   color: var(--gold);
   background: rgba(201,168,76,0.08);
 }
+
+/* ── PGN selector row with copy-collection button ── */
+.pgn-select-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pgn-select-row .gt-toolbar-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.copy-collection-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.copy-collection-btn:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+.copy-collection-btn.copied {
+  border-color: var(--gold);
+  color: var(--gold);
+}

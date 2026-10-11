@@ -3,7 +3,7 @@
 //  All game logic, PGN parsing, board rendering and UI.
 // ═══════════════════════════════════════════════════════
 
-const BUILD = 'v0.7.6';
+const BUILD = 'v0.7.7';
 
 // ═══════════════════════════════════════════════════════
 //  ECO OPENING NAMES  (loaded from openings.json at startup)
@@ -1402,6 +1402,23 @@ function populatePgnSelector(selectedIdx) {
   });
   sel.value = selectedIdx || 0;
   sel.onchange = () => loadPgn(parseInt(sel.value));
+
+  // Wire copy-collection button
+  const copyColBtn = document.getElementById('copyCollectionBtn');
+  if (copyColBtn) {
+    copyColBtn.onclick = () => {
+      const idx = parseInt(document.getElementById('pgnSelect').value) || 0;
+      const url = `${location.origin}${location.pathname}?pgn=${idx}&view=games`;
+      navigator.clipboard.writeText(url).then(() => {
+        copyColBtn.textContent = '✓';
+        copyColBtn.classList.add('copied');
+        setTimeout(() => {
+          copyColBtn.textContent = '⎘';
+          copyColBtn.classList.remove('copied');
+        }, 1800);
+      });
+    };
+  }
 }
 
 async function loadPgn(fileIdx) {

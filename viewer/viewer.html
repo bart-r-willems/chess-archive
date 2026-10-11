@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess Archive Viewer</title>
-<link rel="stylesheet" href="viewer.css?v=0.7.6">
+<link rel="stylesheet" href="viewer.css?v=0.7.7">
 </head>
 <body>
 
@@ -41,7 +41,10 @@
           <td class="gt-col-name" colspan="2">
             <div class="gt-toolbar-cell">
               <label class="gt-toolbar-label">Collection</label>
-              <select id="pgnSelect" class="gt-toolbar-select"><option>Loading…</option></select>
+              <div class="pgn-select-row">
+                <select id="pgnSelect" class="gt-toolbar-select"><option>Loading…</option></select>
+                <button id="copyCollectionBtn" class="btn copy-collection-btn" title="Copy link to this collection">⎘</button>
+              </div>
               <label class="gt-toolbar-label" style="margin-top:4px">Player</label>
               <div class="player-filter-wrap">
                 <input type="text" id="playerFilter" class="player-filter-input" placeholder="Search player…" autocomplete="off">
@@ -175,6 +178,6 @@
   </div>
 </div>
 
-<script src="chess.js?v=0.7.6"></script>
+<script src="chess.js?v=0.7.7"></script>
 </body>
 </html>
