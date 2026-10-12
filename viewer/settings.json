@@ -16,16 +16,20 @@
       "file": "../pgn/my_games.pgn"
     },
     {
-      "label": "Games by A. Anderssen",
+      "label": "Games by Adolf Anderssen",
       "file": "../pgn/Anderssen.pgn"
     },
     {
-      "label": "Games by P. Morphy",
+      "label": "Games by Paul Morphy",
       "file": "../pgn/Morphy.pgn"
     },
     {
-      "label": "Games by R. Nezhmetdinov",
+      "label": "Games by Rashid Nezhmetdinov",
       "file": "../pgn/Nezhhmetdinov.pgn"
+    },
+    { 
+      "label": "Games by Albin Planinc",
+      "file": "../pgn/Planinc.pgn"
     }
   ],
   "piecesRoot": "./pieces/",
