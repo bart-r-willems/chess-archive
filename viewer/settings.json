@@ -3,7 +3,10 @@
   "squares": "green",
   "pieceSets": [
     "merida",
-    "leipzig"
+    "leipzig",
+    "cardinal",
+    "maestro",
+    "mpchess"
   ],
   "squareSets": [
     "green",
