@@ -3,12 +3,19 @@
   "squares": "green",
   "pieceSets": [
     "merida",
-    "leipzig"
+    "leipzig",
+    "cardinal",
+    "maestro",
+    "mpchess"
   ],
   "squareSets": [
     "green",
     "brown",
-    "black_white"
+    "black_white",
+    "purple",
+    "wood",
+    "blue",
+    "green_white"
   ],
   "pgnFiles": [
     {
